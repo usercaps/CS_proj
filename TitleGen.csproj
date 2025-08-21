@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net48</TargetFramework>
+		<UseWindowsForms>true</UseWindowsForms>
+		<AssemblyName>TitleGen</AssemblyName>
+		<RootNamespace>TitleGen</RootNamespace>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<!-- Подключение Microsoft Word Interop -->
+		<PackageReference Include="Microsoft.Office.Interop.Word" Version="15.0.4797.1004" />
+	</ItemGroup>
+
+</Project>
