@@ -205,7 +205,8 @@ namespace TitleGen
                 doc = wordApp.Documents.Open(path, ReadOnly: true, Visible: false);
                 string text = doc.Content.Text;
 
-                var matches = Regex.Matches(text, @"\{(.+?)\}");
+                var matches = Regex.Matches(text, @"\{([Р-пр-џA-Za-z0-9_]+)\}");
+
                 foreach (Match match in matches)
                 {
                     string ph = match.Groups[1].Value;
