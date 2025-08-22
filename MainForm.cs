@@ -235,39 +235,46 @@ namespace TitleGen
                 return;
             }
 
-            string output = Path.Combine(
-                AppDomain.CurrentDomain.BaseDirectory,
-                "Протокол.docx"
-            );
-
-            Word.Application wordApp = new Word.Application();
-            Word.Document doc = null;
-            try
+            using (SaveFileDialog sfd = new SaveFileDialog())
             {
-                doc = wordApp.Documents.Open(txtTemplate.Text);
+                sfd.Filter = "Word Document (*.docx)|*.docx";
+                sfd.Title = "Сохранить протокол как...";
+                sfd.FileName = "Протокол.docx"; // имя по умолчанию
 
-                foreach (var pair in inputs)
+                if (sfd.ShowDialog() != DialogResult.OK)
+                    return; // если нажали "Отмена", выходим
+
+                string output = sfd.FileName;
+
+                Word.Application wordApp = new Word.Application();
+                Word.Document doc = null;
+                try
                 {
-                    string placeholder = "{{" + pair.Key + "}}";
-                    string value = pair.Value.Text;
+                    doc = wordApp.Documents.Open(txtTemplate.Text);
 
-                    Word.Find findObject = wordApp.Selection.Find;
-                    findObject.ClearFormatting();
-                    findObject.Text = placeholder;
-                    findObject.Replacement.ClearFormatting();
-                    findObject.Replacement.Text = value;
+                    foreach (var pair in inputs)
+                    {
+                        string placeholder = "{{" + pair.Key + "}}";
+                        string value = pair.Value.Text;
 
-                    object replaceAll = Word.WdReplace.wdReplaceAll;
-                    findObject.Execute(Replace: ref replaceAll);
+                        Word.Find findObject = wordApp.Selection.Find;
+                        findObject.ClearFormatting();
+                        findObject.Text = placeholder;
+                        findObject.Replacement.ClearFormatting();
+                        findObject.Replacement.Text = value;
+
+                        object replaceAll = Word.WdReplace.wdReplaceAll;
+                        findObject.Execute(Replace: ref replaceAll);
+                    }
+
+                    doc.SaveAs2(output);
+                    MessageBox.Show("DOCX создан: " + output);
                 }
-
-                doc.SaveAs2(output);
-                MessageBox.Show("DOCX создан: " + output);
-            }
-            finally
-            {
-                if (doc != null) doc.Close();
-                wordApp.Quit();
+                finally
+                {
+                    if (doc != null) doc.Close();
+                    wordApp.Quit();
+                }
             }
         }
     }
