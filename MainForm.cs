@@ -141,7 +141,7 @@ namespace TitleGen
         /// </summary>
         private void TemplateSelectorChanged(object sender, EventArgs e)
         {
-            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            string baseDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Templates");
 
             if (radioTip.Checked)
                 txtTemplate.Text = Path.Combine(baseDir, "tipovye.docx");
@@ -149,6 +149,7 @@ namespace TitleGen
                 txtTemplate.Text = Path.Combine(baseDir, "periodich.docx");
             else if (radioTest.Checked)
                 txtTemplate.Text = Path.Combine(baseDir, "test.docx");
+
 
             if (File.Exists(txtTemplate.Text))
                 BuildDynamicForm(txtTemplate.Text);

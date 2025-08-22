@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\Laboratory\\Desktop\\C# tables works\\TitleGen.csproj": {}
+    "C:\\Users\\Laboratory\\Desktop\\CS_proj\\TitleGen.csproj": {}
   },
   "projects": {
-    "C:\\Users\\Laboratory\\Desktop\\C# tables works\\TitleGen.csproj": {
+    "C:\\Users\\Laboratory\\Desktop\\CS_proj\\TitleGen.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\Laboratory\\Desktop\\C# tables works\\TitleGen.csproj",
+        "projectUniqueName": "C:\\Users\\Laboratory\\Desktop\\CS_proj\\TitleGen.csproj",
         "projectName": "TitleGen",
-        "projectPath": "C:\\Users\\Laboratory\\Desktop\\C# tables works\\TitleGen.csproj",
+        "projectPath": "C:\\Users\\Laboratory\\Desktop\\CS_proj\\TitleGen.csproj",
         "packagesPath": "C:\\Users\\Laboratory\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\Laboratory\\Desktop\\C# tables works\\obj\\",
+        "outputPath": "C:\\Users\\Laboratory\\Desktop\\CS_proj\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\Laboratory\\AppData\\Roaming\\NuGet\\NuGet.Config",
