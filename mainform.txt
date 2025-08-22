@@ -1,10 +1,9 @@
-п»їusing System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using Word = Microsoft.Office.Interop.Word;
-using System.Runtime.InteropServices;
 
 namespace TitleGen
 {
@@ -22,7 +21,7 @@ namespace TitleGen
 
         public MainForm()
         {
-            this.Text = "Р“РµРЅРµСЂР°С†РёСЏ РїСЂРѕС‚РѕРєРѕР»Р° (DocX)";
+            this.Text = "Генерация протокола (DocX)";
             this.Width = 850;
             this.Height = 600;
             this.StartPosition = FormStartPosition.CenterScreen;
@@ -33,7 +32,7 @@ namespace TitleGen
 
         private void BuildStaticUI()
         {
-            // РџР°РЅРµР»СЊ СЃР»РµРІР° СЃ РёСЃРїС‹С‚Р°РЅРёСЏРјРё
+            // Панель слева с испытаниями
             testsPanel = new Panel()
             {
                 Left = 10,
@@ -46,17 +45,17 @@ namespace TitleGen
             this.Controls.Add(testsPanel);
 
             string[] tests = {
-                "РџРѕРІС‹С€РµРЅРЅР°СЏ С‚РµРјРїРµСЂР°С‚СѓСЂР°",
-                "РџРѕРЅРёР¶РµРЅРЅР°СЏ С‚РµРјРїРµСЂР°С‚СѓСЂР°",
-                "Р¦РёРєР»С‹ С‚РµРјРїРµСЂР°С‚СѓСЂС‹",
-                "Р”Р°РІР»РµРЅРёРµ СЂР°Р±РѕС‡РµРµ",
-                "Р”Р°РІР»РµРЅРёРµ РїСЂРµРґРµР»СЊРЅРѕРµ",
-                "РџРѕРІС‹С€РµРЅРЅР°СЏ РІР»Р°Р¶РЅРѕСЃС‚СЊ",
-                "РџРѕРЅРёР¶РµРЅРЅР°СЏ РІР»Р°Р¶РЅРѕСЃС‚СЊ",
-                "Р’РёР±СЂР°С†РёСЏ",
-                "РЈРґР°СЂС‹",
-                "РЎРѕР»СЏРЅРѕР№ С‚СѓРјР°РЅ",
-                "Р‘РµР·РѕРїР°СЃРЅРѕСЃС‚СЊ"
+                "Повышенная температура",
+                "Пониженная температура",
+                "Циклы температуры",
+                "Давление рабочее",
+                "Давление предельное",
+                "Повышенная влажность",
+                "Пониженная влажность",
+                "Вибрация",
+                "Удары",
+                "Соляной туман",
+                "Безопасность"
             };
 
             int y = 10;
@@ -73,10 +72,10 @@ namespace TitleGen
                 y += 25;
             }
 
-            // Р Р°РґРёРѕРєРЅРѕРїРєРё РІС‹Р±РѕСЂР° С€Р°Р±Р»РѕРЅР°
+            // Радиокнопки выбора шаблона
             radioTip = new RadioButton()
             {
-                Text = "РўРёРїРѕРІС‹Рµ",
+                Text = "Типовые",
                 Left = 280,
                 Top = 20,
                 AutoSize = true
@@ -86,7 +85,7 @@ namespace TitleGen
 
             radioPeriod = new RadioButton()
             {
-                Text = "РџРµСЂРёРѕРґРёС‡РµСЃРєРёРµ",
+                Text = "Периодические",
                 Left = 380,
                 Top = 20,
                 AutoSize = true
@@ -96,7 +95,7 @@ namespace TitleGen
 
             radioTest = new RadioButton()
             {
-                Text = "РўРµСЃС‚",
+                Text = "Тест",
                 Left = 520,
                 Top = 20,
                 AutoSize = true
@@ -104,7 +103,7 @@ namespace TitleGen
             radioTest.CheckedChanged += TemplateSelectorChanged;
             this.Controls.Add(radioTest);
 
-            // РџРѕР»Рµ РґР»СЏ РїСѓС‚Рё Рє С€Р°Р±Р»РѕРЅСѓ
+            // Поле для пути к шаблону
             txtTemplate = new TextBox()
             {
                 Left = 280,
@@ -113,7 +112,7 @@ namespace TitleGen
             };
             this.Controls.Add(txtTemplate);
 
-            // РџР°РЅРµР»СЊ РґР»СЏ РґРёРЅР°РјРёС‡РµСЃРєРёС… inputbox
+            // Панель для динамических inputbox
             inputsPanel = new Panel()
             {
                 Left = 280,
@@ -125,10 +124,10 @@ namespace TitleGen
             };
             this.Controls.Add(inputsPanel);
 
-            // РљРЅРѕРїРєР° РіРµРЅРµСЂР°С†РёРё DOCX
+            // Кнопка генерации DOCX
             btnGenerate = new Button()
             {
-                Text = "РЎС„РѕСЂРјРёСЂРѕРІР°С‚СЊ DOCX",
+                Text = "Сформировать DOCX",
                 Left = 280,
                 Top = 470,
                 Width = 200
@@ -138,7 +137,7 @@ namespace TitleGen
         }
 
         /// <summary>
-        /// РЎРјРµРЅР° С€Р°Р±Р»РѕРЅР° РїСЂРё РІС‹Р±РѕСЂРµ СЂР°РґРёРѕРєРЅРѕРїРєРё
+        /// Смена шаблона при выборе радиокнопки
         /// </summary>
         private void TemplateSelectorChanged(object sender, EventArgs e)
         {
@@ -151,6 +150,7 @@ namespace TitleGen
             else if (radioTest.Checked)
                 txtTemplate.Text = Path.Combine(baseDir, "test.docx");
 
+
             if (File.Exists(txtTemplate.Text))
                 BuildDynamicForm(txtTemplate.Text);
             else
@@ -158,7 +158,7 @@ namespace TitleGen
         }
 
         /// <summary>
-        /// Р§С‚РµРЅРёРµ РїР»РµР№СЃС…РѕР»РґРµСЂРѕРІ РёР· С€Р°Р±Р»РѕРЅР° Рё СЃРѕР·РґР°РЅРёРµ inputbox
+        /// Чтение плейсхолдеров из шаблона и создание inputbox
         /// </summary>
         private void BuildDynamicForm(string templatePath)
         {
@@ -193,7 +193,7 @@ namespace TitleGen
         }
 
         /// <summary>
-        /// РР·РІР»РµС‡РµРЅРёРµ РїР»РµР№СЃС…РѕР»РґРµСЂРѕРІ {{name}} РёР· Word-РґРѕРєСѓРјРµРЅС‚Р°
+        /// Извлечение плейсхолдеров {{name}} из Word-документа
         /// </summary>
         private List<string> ExtractPlaceholders(string path)
         {
@@ -206,7 +206,7 @@ namespace TitleGen
                 doc = wordApp.Documents.Open(path, ReadOnly: true, Visible: false);
                 string text = doc.Content.Text;
 
-                var matches = Regex.Matches(text, @"\{([Рђ-РЇР°-СЏA-Za-z0-9_]+)\}");
+                var matches = Regex.Matches(text, @"\{([А-Яа-яA-Za-z0-9_]+)\}");
 
                 foreach (Match match in matches)
                 {
@@ -217,107 +217,65 @@ namespace TitleGen
             }
             finally
             {
-                if (doc != null)
-                {
-                    doc.Close(false);
-                    Marshal.ReleaseComObject(doc);
-                }
-
-                if (wordApp != null)
-                {
-                    wordApp.Quit(false);
-                    Marshal.ReleaseComObject(wordApp);
-                }
-
-                doc = null;
-                wordApp = null;
-
-                GC.Collect();
-                GC.WaitForPendingFinalizers();
+                if (doc != null) doc.Close(false);
+                wordApp.Quit(false);
             }
 
             return placeholders;
         }
 
         /// <summary>
-        /// Р“РµРЅРµСЂР°С†РёСЏ РёС‚РѕРіРѕРІРѕРіРѕ DOCX
+        /// Генерация итогового DOCX
         /// </summary>
         private void btnGenerate_Click(object sender, EventArgs e)
         {
             if (!File.Exists(txtTemplate.Text))
             {
-                MessageBox.Show("РЁР°Р±Р»РѕРЅ РЅРµ РЅР°Р№РґРµРЅ!");
+                MessageBox.Show("Шаблон не найден!");
                 return;
             }
 
             using (SaveFileDialog sfd = new SaveFileDialog())
             {
                 sfd.Filter = "Word Document (*.docx)|*.docx";
-                sfd.Title = "РЎРѕС…СЂР°РЅРёС‚СЊ РїСЂРѕС‚РѕРєРѕР» РєР°Рє...";
-                sfd.FileName = "РџСЂРѕС‚РѕРєРѕР».docx";
+                sfd.Title = "Сохранить протокол как...";
+                sfd.FileName = "Протокол.docx"; // имя по умолчанию
 
                 if (sfd.ShowDialog() != DialogResult.OK)
-                    return;
+                    return; // если нажали "Отмена", выходим
 
                 string output = sfd.FileName;
 
-                Word.Application wordApp = null;
+                Word.Application wordApp = new Word.Application();
                 Word.Document doc = null;
                 try
                 {
-                    wordApp = new Word.Application();
-                    doc = wordApp.Documents.Open(txtTemplate.Text, ReadOnly: false, Visible: false);
+                    doc = wordApp.Documents.Open(txtTemplate.Text);
 
                     foreach (var pair in inputs)
                     {
                         string placeholder = "{{" + pair.Key + "}}";
                         string value = pair.Value.Text;
 
-                        Word.Range range = doc.Content;
-                        range.Find.ClearFormatting();
-                        range.Find.Execute(
-                            FindText: placeholder,
-                            ReplaceWith: value,
-                            Replace: Word.WdReplace.wdReplaceAll
-                        );
+                        Word.Find findObject = wordApp.Selection.Find;
+                        findObject.ClearFormatting();
+                        findObject.Text = placeholder;
+                        findObject.Replacement.ClearFormatting();
+                        findObject.Replacement.Text = value;
+
+                        object replaceAll = Word.WdReplace.wdReplaceAll;
+                        findObject.Execute(Replace: ref replaceAll);
                     }
 
                     doc.SaveAs2(output);
-                    MessageBox.Show("DOCX СЃРѕР·РґР°РЅ: " + output);
+                    MessageBox.Show("DOCX создан: " + output);
                 }
                 finally
                 {
-                    if (doc != null)
-                    {
-                        doc.Close(false);
-                        Marshal.ReleaseComObject(doc);
-                    }
-
-                    if (wordApp != null)
-                    {
-                        wordApp.Quit();
-                        Marshal.ReleaseComObject(wordApp);
-                    }
-
-                    doc = null;
-                    wordApp = null;
-
-                    GC.Collect();
-                    GC.WaitForPendingFinalizers();
+                    if (doc != null) doc.Close();
+                    wordApp.Quit();
                 }
             }
-        }
-
-        private void InitializeComponent()
-        {
-            this.SuspendLayout();
-            // 
-            // MainForm
-            // 
-            this.ClientSize = new System.Drawing.Size(284, 262);
-            this.Name = "MainForm";
-            this.ResumeLayout(false);
-
         }
     }
 }
