@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "chZcPY7ig7+P3JAZtBeOo5WkF+LR7WYa4AY91WFp4ArudGusZPagGgAfY6l31e+oIp8uBLQXS2jviUixgsKxdg==",
+  "success": true,
+  "projectFilePath": "C:\\Users\\Laboratory\\Desktop\\C# tables works\\TitleGen.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\Laboratory\\.nuget\\packages\\microsoft.office.interop.word\\15.0.4797.1004\\microsoft.office.interop.word.15.0.4797.1004.nupkg.sha512"
+  ],
+  "logs": []
+}
