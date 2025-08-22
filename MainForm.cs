@@ -270,5 +270,17 @@ namespace TitleGen
                 wordApp.Quit();
             }
         }
+
+        private void InitializeComponent()
+        {
+            this.SuspendLayout();
+            // 
+            // MainForm
+            // 
+            this.ClientSize = new System.Drawing.Size(284, 262);
+            this.Name = "MainForm";
+            this.ResumeLayout(false);
+
+        }
     }
 }
