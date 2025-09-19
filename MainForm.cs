@@ -780,27 +780,41 @@ namespace TitleGen
         {
             foreach (var tableConfig in config.tables)
             {
-                if (!doc.Bookmarks.Exists(tableConfig.bookmark))
+                // 👇 Ищем таблицу по плейсхолдеру внутри неё
+                Word.Range searchRange = doc.Content;
+                object findText = $"{{{{{tableConfig.bookmark}}}}}";
+                object missing = System.Reflection.Missing.Value;
+
+                Word.Find find = searchRange.Find;
+                find.Text = findText.ToString();
+                find.Execute();
+
+                if (!find.Found || searchRange.Tables.Count == 0)
+                {
+                    MessageBox.Show($"❌ Таблица для '{tableConfig.bookmark}' не найдена по плейсхолдеру.");
                     continue;
+                }
 
-                Word.Bookmark bm = doc.Bookmarks[tableConfig.bookmark];
-                if (!(bm.Range.Tables.Count > 0))
-                    continue;
+                Word.Table table = searchRange.Tables[1];
+                MessageBox.Show($"✅ Найдена таблица: {tableConfig.name}\nСтрок: {table.Rows.Count}, Колонок: {table.Columns.Count}");
 
-                Word.Table table = bm.Range.Tables[1];
-
+                // Удаляем шаблонную строку (вторая строка)
                 if (table.Rows.Count > 1)
                 {
                     try
                     {
                         table.Rows[2].Delete();
+                        MessageBox.Show($"🗑️ Удалена шаблонная строка. Осталось строк: {table.Rows.Count}");
                     }
-                    catch { /* игнорируем */ }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"⚠️ Не удалось удалить строку 2: {ex.Message}");
+                    }
                 }
 
                 var rowsToInsert = new List<TableRow>();
 
-                // 1. Индивидуальные строки из JSON
+                // Индивидуальные строки из JSON
                 foreach (var row in tableConfig.rows)
                 {
                     if (testCheckboxes.TryGetValue(row.testName, out CheckBox cb) && cb.Checked)
@@ -809,10 +823,9 @@ namespace TitleGen
                     }
                 }
 
-                // 2. Общие СИ/ИО — добавляем ОДИН РАЗ, без дублей
+                // Общие приборы
                 if (tableConfig.bookmark == "Table_Equipment")
                 {
-                    // Глобально общие приборы
                     string anyTest = testCheckboxes
                         .Where(kvp => kvp.Value.Checked)
                         .Select(kvp => kvp.Key)
@@ -828,7 +841,6 @@ namespace TitleGen
                         rowsToInsert.Add(clonedRow);
                     }
 
-                    // Групповые приборы
                     foreach (var group in testGroups)
                     {
                         var groupName = group.Key;
@@ -859,20 +871,36 @@ namespace TitleGen
                     var rowData = rowsToInsert[i];
 
                     Word.Row newRow;
-                    if (table.Rows.Count > 1)
+                    try
                     {
-                        Word.Row lastRow = table.Rows.Last;
-                        Word.Range range = lastRow.Range;
-                        newRow = table.Rows.Add(range);
-                    }
-                    else
-                    {
-                        newRow = table.Rows.Add();
-                    }
+                        if (table.Rows.Count > 1)
+                        {
+                            Word.Row lastRow = table.Rows.Last;
+                            Word.Range range = lastRow.Range;
+                            newRow = table.Rows.Add(range);
+                        }
+                        else
+                        {
+                            newRow = table.Rows.Add();
+                        }
 
-                    for (int colIndex = 0; colIndex < rowData.values.Count && colIndex < newRow.Cells.Count; colIndex++)
+                        // Заполняем ячейки через Cell(row, col)
+                        for (int colIndex = 0; colIndex < rowData.values.Count; colIndex++)
+                        {
+                            try
+                            {
+                                var cell = table.Cell(newRow.Index, colIndex + 1);
+                                cell.Range.Text = rowData.values[colIndex];
+                            }
+                            catch (Exception ex)
+                            {
+                                MessageBox.Show($"Ошибка записи в ячейку ({newRow.Index}, {colIndex + 1}): {ex.Message}");
+                            }
+                        }
+                    }
+                    catch (Exception ex)
                     {
-                        newRow.Cells[colIndex + 1].Range.Text = rowData.values[colIndex];
+                        MessageBox.Show($"Ошибка добавления строки: {ex.Message}");
                     }
                 }
 
