@@ -2,10 +2,9 @@
 
 namespace TitleGen
 {
-    public class TableRow
+    public class TemplateConfig
     {
-        public string testName { get; set; }
-        public List<string> values { get; set; }
+        public List<TableConfig> tables { get; set; }
     }
 
     public class TableConfig
@@ -16,8 +15,9 @@ namespace TitleGen
         public List<TableRow> rows { get; set; }
     }
 
-    public class TemplateConfig
+    public class TableRow
     {
-        public List<TableConfig> tables { get; set; }
+        public string testName { get; set; }
+        public List<string> values { get; set; }
     }
 }

@@ -42,17 +42,17 @@ namespace TitleGen
             new TableRow
             {
                 testName = "*",
-                values = new List<string> { "", "Барометр БАММ-1", "Б-001", "2025-12-31" }
+                values = new List<string> { "", "Барометр БАММ-1", "Б-001", "2025-12-31", "" }
             },
             new TableRow
             {
                 testName = "*",
-                values = new List<string> { "", "Термометр ВИТ-1", "ВИТ-001", "2025-11-15" }
+                values = new List<string> { "", "Термометр ВИТ-1", "ВИТ-001", "2025-11-15", "" }
             },
             new TableRow
             {
                 testName = "*",
-                values = new List<string> { "", "Гигрометр ВИТ-2", "Г-002", "2025-10-20" }
+                values = new List<string> { "", "Гигрометр ВИТ-2", "Г-002", "2025-10-20", "" }
             }
         };
 
@@ -69,19 +69,19 @@ namespace TitleGen
             { "Температура", new TableRow
                 {
                     testName = "Температура",
-                    values = new List<string> { "", "Термокамера Binder", "TK-2024-001", "2025-12-01" }
+                    values = new List<string> { "", "Термокамера Binder", "TK-2024-001", "2025-12-01", "" }
                 }
             },
             { "Давление", new TableRow
                 {
                     testName = "Давление",
-                    values = new List<string> { "", "Манометр МД-100", "МД-001", "2025-11-30" }
+                    values = new List<string> { "", "Манометр МД-100", "МД-001", "2025-11-30", "" }
                 }
             },
             { "Влажность", new TableRow
                 {
                     testName = "Влажность",
-                    values = new List<string> { "", "Камера влажности Climats", "CV-2024", "2025-10-15" }
+                    values = new List<string> { "", "Камера влажности Climats", "CV-2024", "2025-10-15", "" }
                 }
             }
         };
@@ -160,7 +160,6 @@ namespace TitleGen
                 y += 25;
             }
 
-            // 👇 Подписываемся на изменение чекбоксов
             foreach (var cb in testCheckboxes.Values)
             {
                 cb.CheckedChanged += (s, ev) => UpdateRowStatuses();
@@ -355,6 +354,7 @@ namespace TitleGen
 
         private TemplateConfig CreateDefaultConfig()
         {
+            // 👇 Возвращаем ТВОЙ config.json как объект по умолчанию
             return new TemplateConfig
             {
                 tables = new List<TableConfig>
@@ -363,23 +363,39 @@ namespace TitleGen
                     {
                         name = "Программа испытаний",
                         bookmark = "Table_Program",
-                        columns = new List<string> { "№", "Наименование испытания", "Методика", "Требования" },
+                        columns = new List<string>
+                        {
+                            "№",
+                            "Наименование объекта испытаний (показателей, характеристик)",
+                            "Наименование ТНПА, устанавливающего метод испытаний",
+                            "Примечание"
+                        },
                         rows = new List<TableRow>
                         {
                             new TableRow
                             {
                                 testName = "Повышенная температура",
-                                values = new List<string> { "1", "Повышенная температура", "ГОСТ 12345-67", "Выдержать 72ч при +85°C" }
+                                values = new List<string> { "1", "Проверка требований к воздействию повышенной рабочей и повышенной предельной температуры", "4.7.1", "" }
                             },
                             new TableRow
                             {
-                                testName = "Вибрация",
-                                values = new List<string> { "2", "Вибрация", "ГОСТ 30630.2.1", "Частота 10-55 Гц, амплитуда 1.5 мм" }
+                                testName = "Пониженная температура",
+                                values = new List<string> { "2", "Проверка требований к воздействию пониженной рабочей и пониженной предельной температуры", "4.7.2", "" }
                             },
                             new TableRow
                             {
-                                testName = "Безопасность",
-                                values = new List<string> { "3", "Безопасность", "ГОСТ Р МЭК 61010", "Нет пробоя изоляции" }
+                                testName = "Циклы температуры",
+                                values = new List<string> { "3", "Проверка требований к изменению температуры окружающей среды", "4.7.9", "" }
+                            },
+                            new TableRow
+                            {
+                                testName = "Давление рабочее",
+                                values = new List<string> { "", "Проверка требований к воздействию пониженного рабочего, предельного атмосферного давления", "4.7.3, 4.7.4", "" }
+                            },
+                            new TableRow
+                            {
+                                testName = "Удары",
+                                values = new List<string> { "", "Проверка устойчивости и прочности при воздействии ударных нагрузок", "4.7.11, а), 4.7.11, б), 4.7.12", "" }
                             }
                         }
                     },
@@ -387,13 +403,50 @@ namespace TitleGen
                     {
                         name = "СИ и ИО",
                         bookmark = "Table_Equipment",
-                        columns = new List<string> { "№", "Наименование СИ/ИО", "Зав. №", "Поверка до" },
+                        columns = new List<string>
+                        {
+                            "№",
+                            "Наименование испытательного оборудования и средств измерений",
+                            "Тип, марка",
+                            "Номер",
+                            "Период аттестации, калибровки"
+                        },
                         rows = new List<TableRow>
                         {
                             new TableRow
                             {
                                 testName = "Вибрация",
-                                values = new List<string> { "", "Вибростенд LDS V408", "VS-408-001", "2025-11-30" }
+                                values = new List<string> { "", "Вибростенд LDS V408", "VS-408-001", "2025-11-30", "" }
+                            },
+                            new TableRow
+                            {
+                                testName = "Повышенная температура",
+                                values = new List<string> { "", "Камера тепла и холода", "МС-71", "906569", "08.24 - 08.25" }
+                            },
+                            new TableRow
+                            {
+                                testName = "Пониженная температура",
+                                values = new List<string> { "", "Камера тепла и холода", "МС-71", "906569", "08.24 - 08.25" }
+                            },
+                            new TableRow
+                            {
+                                testName = "Циклы температуры",
+                                values = new List<string> { "", "Камера тепла и холода", "МС-71", "906569", "08.24 - 08.25" }
+                            },
+                            new TableRow
+                            {
+                                testName = "Удары",
+                                values = new List<string> { "", "Ударная установка", "STT500", "2/79", "10.24 - 10.25" }
+                            },
+                            new TableRow
+                            {
+                                testName = "Давление рабочее",
+                                values = new List<string> { "", "Термобарокамера", "TBV-2000", "308934", "08.24 - 08.25" }
+                            },
+                            new TableRow
+                            {
+                                testName = "Давление предельное",
+                                values = new List<string> { "", "Термобарокамера", "TBV-2000", "308934", "08.24 - 08.25" }
                             }
                         }
                     },
@@ -401,23 +454,46 @@ namespace TitleGen
                     {
                         name = "Результаты испытаний",
                         bookmark = "Table_Results",
-                        columns = new List<string> { "№", "Наименование испытания", "Результат", "Примечание" },
+                        columns = new List<string>
+                        {
+                            "№",
+                            "Наименование объекта испытаний (показателей, характеристик)",
+                            "Номер пункта ТНПА, устанавливающего",
+                            "Нормированное значение показателей, установленных в ТНПА",
+                            "Фактические значения показателей",
+                            "Вывод о соответствии требованиям ТНПА"
+                        },
                         rows = new List<TableRow>
                         {
                             new TableRow
                             {
                                 testName = "Повышенная температура",
-                                values = new List<string> { "1", "Повышенная температура", "", "" }
+                                values = new List<string> { "1", "ТЕСТ повышенной темпы", "", "123", "1234", "Соотв." }
                             },
                             new TableRow
                             {
-                                testName = "Вибрация",
-                                values = new List<string> { "2", "Вибрация", "", "" }
+                                testName = "Пониженная температура",
+                                values = new List<string> { "2", "ТЕСТ пониженной темпы", "", "123", "1234", "Соотв." }
                             },
                             new TableRow
                             {
-                                testName = "Безопасность",
-                                values = new List<string> { "3", "Безопасность", "", "" }
+                                testName = "Циклы температуры",
+                                values = new List<string> { "3", "ТЕСТ циклов", "", "123", "1235", "Соотв." }
+                            },
+                            new TableRow
+                            {
+                                testName = "Давление рабочее",
+                                values = new List<string> { "", "ТЕСТ ДАВЛЕНИЯ", "", "123", "1235", "Соотв." }
+                            },
+                            new TableRow
+                            {
+                                testName = "Давление предельное",
+                                values = new List<string> { "", "ТЕСТ ДАВЛЕНИЯ 2", "", "123", "235", "Соотв." }
+                            },
+                            new TableRow
+                            {
+                                testName = "Удары",
+                                values = new List<string> { "", "ТЕСТ УДАРОВ", "", "123", "2135", "Соотв." }
                             }
                         }
                     }
@@ -455,7 +531,7 @@ namespace TitleGen
             if (currentTable?.rows == null) return;
 
             dgvRows.Columns.Add("testName", "Привязка к чекбоксу");
-            dgvRows.Columns.Add("status", "Статус"); // 👈 новая колонка
+            dgvRows.Columns.Add("status", "Статус");
 
             for (int i = 0; i < (currentTable.columns?.Count ?? 0); i++)
             {
@@ -473,7 +549,6 @@ namespace TitleGen
                     status = "Скрыто";
                 }
                 values.Add(status);
-
                 values.AddRange(row.values);
                 var rowIndex = dgvRows.Rows.Add(values.ToArray());
 
@@ -725,12 +800,12 @@ namespace TitleGen
                     string json = File.ReadAllText(configPath);
                     var config = JsonConvert.DeserializeObject<TemplateConfig>(json);
 
-                    ProcessTablesFromConfig(doc, config);
+                    ProcessTablesFromConfig(doc, config); // 👈 ЗДЕСЬ НОВАЯ ЛОГИКА
 
                     ReplacePlaceholdersInDocument(doc);
 
                     doc.SaveAs2(output);
-                    MessageBox.Show("DOCX успешно создан:\n" + output);
+                    MessageBox.Show("DOCX успешно создан:\n" + output, "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
                 catch (Exception ex)
                 {
@@ -776,42 +851,37 @@ namespace TitleGen
             }
         }
 
+        // ✅ НОВАЯ ВЕРСИЯ — СОЗДАЁТ ТАБЛИЦЫ С НУЛЯ ПО ЗАКЛАДКАМ
         private void ProcessTablesFromConfig(Word.Document doc, TemplateConfig config)
         {
             foreach (var tableConfig in config.tables)
             {
-                // 👇 Ищем таблицу по плейсхолдеру внутри неё
-                Word.Range searchRange = doc.Content;
-                object findText = $"{{{{{tableConfig.bookmark}}}}}";
-                object missing = System.Reflection.Missing.Value;
+                Word.Range insertRange = null;
 
-                Word.Find find = searchRange.Find;
-                find.Text = findText.ToString();
-                find.Execute();
-
-                if (!find.Found || searchRange.Tables.Count == 0)
+                // 👉 Ищем закладку — она указывает, КУДА вставить таблицу
+                if (!doc.Bookmarks.Exists(tableConfig.bookmark))
                 {
-                    MessageBox.Show($"❌ Таблица для '{tableConfig.bookmark}' не найдена по плейсхолдеру.");
+                    MessageBox.Show($"❌ Закладка '{tableConfig.bookmark}' не найдена для таблицы '{tableConfig.name}'.\n\nУбедитесь, что в шаблоне есть закладка с таким именем.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     continue;
                 }
 
-                Word.Table table = searchRange.Tables[1];
-                MessageBox.Show($"✅ Найдена таблица: {tableConfig.name}\nСтрок: {table.Rows.Count}, Колонок: {table.Columns.Count}");
-
-                // Удаляем шаблонную строку (вторая строка)
-                if (table.Rows.Count > 1)
+                try
                 {
-                    try
-                    {
-                        table.Rows[2].Delete();
-                        MessageBox.Show($"🗑️ Удалена шаблонная строка. Осталось строк: {table.Rows.Count}");
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show($"⚠️ Не удалось удалить строку 2: {ex.Message}");
-                    }
+                    Word.Bookmark bookmark = doc.Bookmarks[tableConfig.bookmark];
+                    insertRange = bookmark.Range;
+
+                    // Очищаем место вставки (удаляем текст закладки, например "[Таблица: ...]")
+                    insertRange.Text = "";
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"⚠️ Ошибка при подготовке места для таблицы '{tableConfig.name}': {ex.Message}");
+                    continue;
                 }
 
+                if (insertRange == null) continue;
+
+                // 👇 Подготавливаем список строк для вставки
                 var rowsToInsert = new List<TableRow>();
 
                 // Индивидуальные строки из JSON
@@ -823,8 +893,8 @@ namespace TitleGen
                     }
                 }
 
-                // Общие приборы
-                if (tableConfig.bookmark == "Table_Equipment")
+                // Общие приборы — только для таблицы "СИ и ИО"
+                if (tableConfig.name == "СИ и ИО")
                 {
                     string anyTest = testCheckboxes
                         .Where(kvp => kvp.Value.Checked)
@@ -865,60 +935,84 @@ namespace TitleGen
                     }
                 }
 
-                // Вставляем строки
-                for (int i = rowsToInsert.Count - 1; i >= 0; i--)
+                // 👇 Если нет активных строк — вставляем только заголовок?
+                if (rowsToInsert.Count == 0)
                 {
-                    var rowData = rowsToInsert[i];
-
-                    Word.Row newRow;
-                    try
-                    {
-                        if (table.Rows.Count > 1)
-                        {
-                            Word.Row lastRow = table.Rows.Last;
-                            Word.Range range = lastRow.Range;
-                            newRow = table.Rows.Add(range);
-                        }
-                        else
-                        {
-                            newRow = table.Rows.Add();
-                        }
-
-                        // Заполняем ячейки через Cell(row, col)
-                        for (int colIndex = 0; colIndex < rowData.values.Count; colIndex++)
-                        {
-                            try
-                            {
-                                var cell = table.Cell(newRow.Index, colIndex + 1);
-                                cell.Range.Text = rowData.values[colIndex];
-                            }
-                            catch (Exception ex)
-                            {
-                                MessageBox.Show($"Ошибка записи в ячейку ({newRow.Index}, {colIndex + 1}): {ex.Message}");
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show($"Ошибка добавления строки: {ex.Message}");
-                    }
+                    rowsToInsert.Add(new TableRow { values = new List<string>(tableConfig.columns) });
+                }
+                else
+                {
+                    // Добавляем заголовок в начало
+                    rowsToInsert.Insert(0, new TableRow { values = new List<string>(tableConfig.columns) });
                 }
 
-                // Автонумерация
-                if (tableConfig.bookmark == "Table_Equipment")
+                // 👇 Создаём таблицу с нуля
+                try
                 {
-                    int rowNum = 1;
-                    foreach (Word.Row row in table.Rows)
+                    int rowCount = rowsToInsert.Count;
+                    int colCount = tableConfig.columns.Count;
+
+                    if (colCount == 0)
                     {
-                        if (row.Index == 1) continue;
-                        if (row.Cells.Count > 0)
+                        MessageBox.Show($"Таблица '{tableConfig.name}' не имеет колонок. Пропуск.");
+                        continue;
+                    }
+
+                    // Создаём таблицу
+                    Word.Table newTable = doc.Tables.Add(
+                        insertRange,
+                        rowCount,
+                        colCount,
+                        Word.WdDefaultTableBehavior.wdWord9TableBehavior,
+                        Word.WdAutoFitBehavior.wdAutoFitWindow
+                    );
+
+                    // Заполняем таблицу
+                    for (int r = 0; r < rowCount; r++)
+                    {
+                        var rowData = rowsToInsert[r];
+                        for (int c = 0; c < colCount; c++)
                         {
-                            row.Cells[1].Range.Text = rowNum.ToString();
-                            rowNum++;
+                            string cellText = c < rowData.values.Count ? rowData.values[c] : "";
+                            Word.Cell cell = newTable.Cell(r + 1, c + 1);
+                            cell.Range.Text = cellText;
+
+                            // Для заголовка — жирный шрифт и серый фон
+                            if (r == 0)
+                            {
+                                cell.Range.Bold = 1;
+                                cell.Shading.BackgroundPatternColor = Word.WdColor.wdColorGray15;
+                            }
                         }
                     }
+
+                    // 👇 Автонумерация — только для таблицы "СИ и ИО" (кроме заголовка)
+                    if (tableConfig.name == "СИ и ИО" && rowCount > 1)
+                    {
+                        for (int r = 2; r <= rowCount; r++) // с 2-й строки (после заголовка)
+                        {
+                            if (newTable.Columns.Count >= 1)
+                            {
+                                newTable.Cell(r, 1).Range.Text = (r - 1).ToString();
+                            }
+                        }
+                    }
+
+                    // 👇 Добавляем отступ после таблицы
+                    Word.Range afterTable = newTable.Range;
+                    afterTable.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
+                    afterTable.InsertAfter("\n");
+
+                    MessageBox.Show($"✅ Таблица '{tableConfig.name}' успешно создана по закладке '{tableConfig.bookmark}'.", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"❌ Ошибка создания таблицы '{tableConfig.name}': {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
         }
     }
+
+    // Модели (если не были объявлены ранее)
+   
 }
