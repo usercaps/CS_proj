@@ -34,9 +34,8 @@ namespace TitleGen
 
         private List<TableRow> commonEquipment = new List<TableRow>
         {
-            new TableRow { testName = "*", values = new List<string> { "", "Барометр БАММ-1", "Б-001", "2025-12-31", "" } },
-            new TableRow { testName = "*", values = new List<string> { "", "Термометр ВИТ-1", "ВИТ-001", "2025-11-15", "" } },
-            new TableRow { testName = "*", values = new List<string> { "", "Гигрометр ВИТ-2", "Г-002", "2025-10-20", "" } }
+            new TableRow { testName = "*", values = new List<string> { "", "Барометр-анероид", "М110", "126", "04.25 - 04.26" } },
+            new TableRow { testName = "*", values = new List<string> { "", "Комбинированный прибор ", "Testo 625", "61064548/709", "05.25 - 05.26" } }
         };
 
         private Dictionary<string, List<string>> testGroups = new Dictionary<string, List<string>>
@@ -46,12 +45,12 @@ namespace TitleGen
             { "Влажность", new List<string> { "Повышенная влажность", "Пониженная влажность" } }
         };
 
-        private Dictionary<string, TableRow> groupEquipment = new Dictionary<string, TableRow>
-        {
-            { "Температура", new TableRow { testName = "Температура", values = new List<string> { "", "Термокамера Binder", "TK-2024-001", "2025-12-01", "" } } },
-            { "Давление", new TableRow { testName = "Давление", values = new List<string> { "", "Манометр МД-100", "МД-001", "2025-11-30", "" } } },
-            { "Влажность", new TableRow { testName = "Влажность", values = new List<string> { "", "Камера влажности Climats", "CV-2024", "2025-10-15", "" } } }
-        };
+        //private Dictionary<string, TableRow> groupEquipment = new Dictionary<string, TableRow>
+        //{
+        //    { "Температура", new TableRow { testName = "Температура", values = new List<string> { "", "Термокамера Binder", "TK-2024-001", "2025-12-01", "" } } },
+        //    { "Давление", new TableRow { testName = "Давление", values = new List<string> { "", "Манометр МД-100", "МД-001", "2025-11-30", "" } } },
+        //    { "Влажность", new TableRow { testName = "Влажность", values = new List<string> { "", "Камера влажности Climats", "CV-2024", "2025-10-15", "" } } }
+        //};
 
         public MainForm()
         {
@@ -427,12 +426,17 @@ namespace TitleGen
 
         private void btnSaveConfig_Click(object sender, EventArgs e)
         {
-            if (currentConfig == null || currentTable == null) return;
+            if (currentConfig == null || currentTable == null)
+            {
+                MessageBox.Show("Нет данных для сохранения.");
+                return;
+            }
 
-            currentTable.rows = new List<TableRow>();
+            currentTable.rows.Clear();
             foreach (DataGridViewRow row in dgvRows.Rows)
             {
                 if (row.IsNewRow) continue;
+
                 var values = new List<string>();
                 for (int i = 2; i < row.Cells.Count; i++)
                     values.Add(row.Cells[i].Value?.ToString() ?? "");
@@ -443,8 +447,19 @@ namespace TitleGen
                 });
             }
 
-            File.WriteAllText(currentConfigPath, JsonConvert.SerializeObject(currentConfig, Formatting.Indented));
-            MessageBox.Show($"Конфиг сохранён:\n{currentConfigPath}");
+            try
+            {
+                string json = JsonConvert.SerializeObject(currentConfig, Formatting.Indented);
+                File.WriteAllText(currentConfigPath, json);
+                MessageBox.Show($"Конфиг сохранён:\n{currentConfigPath}", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                // 👇 Обновляем UI после сохранения
+                BindTableToGrid();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка сохранения:\n{ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void BuildDynamicForm(string templatePath)
@@ -518,7 +533,10 @@ namespace TitleGen
                     doc = wordApp.Documents.Open(txtTemplate.Text, ReadOnly: false, Visible: false);
 
                     ReplacePlaceholdersInDocument(doc);
-                    var config = JsonConvert.DeserializeObject<TemplateConfig>(File.ReadAllText(configPath));
+
+                    // 👇 ИСПОЛЬЗУЕМ ТЕКУЩИЙ КОНФИГ, А НЕ ФАЙЛ!
+                    var config = currentConfig;
+
                     ProcessTablesFromConfig(doc, config);
                     ReplacePlaceholdersInDocument(doc);
 
@@ -549,7 +567,7 @@ namespace TitleGen
             }
         }
 
-        // ✅ ОСНОВНОЙ МЕТОД — БЕЗ КРЕСТИКОВ
+        // ✅ ОСНОВНОЙ МЕТОД — БЕЗ КРЕСТИКОВ И С РАБОЧИМ РЕДАКТОРОМ
         private void ProcessTablesFromConfig(Word.Document doc, TemplateConfig config)
         {
             foreach (var tableConfig in config.tables)
@@ -600,15 +618,14 @@ namespace TitleGen
                             }
                         }
 
-                        if (activeTests.Count > 0 && groupEquipment.ContainsKey(group.Key))
-                        {
-                            var eq = groupEquipment[group.Key];
-                            rowsToInsert.Add(new TableRow { testName = activeTests[0], values = new List<string>(eq.values) });
-                        }
+                        //if (activeTests.Count > 0 && groupEquipment.ContainsKey(group.Key))
+                        //{
+                        //    var eq = groupEquipment[group.Key];
+                        //    rowsToInsert.Add(new TableRow { testName = activeTests[0], values = new List<string>(eq.values) });
+                        //}
                     }
                 }
 
-                // Защита: если нет строк — создаём только заголовок
                 if (rowsToInsert.Count == 0)
                 {
                     rowsToInsert.Add(new TableRow { values = new List<string>(tableConfig.columns) });
@@ -642,11 +659,7 @@ namespace TitleGen
                         Word.WdAutoFitBehavior.wdAutoFitContent
                     );
 
-                    // 👇 УБИРАЕМ КРЕСТИКИ — ЯВНО ЗАДАЁМ ГРАНИЦЫ БЕЗ ДИАГОНАЛЕЙ
-                    newTable.Borders.Enable = 0; // Сначала выключаем всё
-
-                    // Задаём стиль для всех границ
-                    // 👇 УБИРАЕМ КРЕСТИКИ — ЗАДАЁМ ГРАНИЦЫ БЕЗ ДИАГОНАЛЕЙ
+                    // 👇 УБИРАЕМ КРЕСТИКИ — ПРАВИЛЬНАЯ РАБОТА С ГРАНИЦАМИ
                     foreach (Word.Border border in newTable.Borders)
                     {
                         border.LineStyle = Word.WdLineStyle.wdLineStyleSingle;
@@ -654,7 +667,6 @@ namespace TitleGen
                         border.Color = Word.WdColor.wdColorAutomatic;
                     }
 
-                    // Явно задаём, какие границы видны
                     newTable.Borders[Word.WdBorderType.wdBorderTop].LineStyle = Word.WdLineStyle.wdLineStyleSingle;
                     newTable.Borders[Word.WdBorderType.wdBorderBottom].LineStyle = Word.WdLineStyle.wdLineStyleSingle;
                     newTable.Borders[Word.WdBorderType.wdBorderLeft].LineStyle = Word.WdLineStyle.wdLineStyleSingle;
@@ -662,11 +674,9 @@ namespace TitleGen
                     newTable.Borders[Word.WdBorderType.wdBorderHorizontal].LineStyle = Word.WdLineStyle.wdLineStyleSingle;
                     newTable.Borders[Word.WdBorderType.wdBorderVertical].LineStyle = Word.WdLineStyle.wdLineStyleSingle;
 
-                    // Отключаем диагональные — ставим "None"
                     newTable.Borders[Word.WdBorderType.wdBorderDiagonalDown].LineStyle = Word.WdLineStyle.wdLineStyleNone;
                     newTable.Borders[Word.WdBorderType.wdBorderDiagonalUp].LineStyle = Word.WdLineStyle.wdLineStyleNone;
 
-                    // Заполнение ячеек
                     for (int r = 0; r < rowsToInsert.Count; r++)
                     {
                         var rowData = rowsToInsert[r];
@@ -678,11 +688,9 @@ namespace TitleGen
                                 Word.Cell cell = newTable.Cell(r + 1, c + 1);
                                 cell.Range.Text = cellText;
 
-                                // Шрифт: Times New Roman, 13 pt, без жирного
                                 cell.Range.Font.Name = "Times New Roman";
                                 cell.Range.Font.Size = 13;
 
-                                // Переносы и отступы
                                 cell.Range.ParagraphFormat.WordWrap = 1;
                                 cell.Range.ParagraphFormat.SpaceAfter = 0;
                                 cell.Range.ParagraphFormat.SpaceBefore = 0;
@@ -691,7 +699,6 @@ namespace TitleGen
                                 cell.LeftPadding = 3;
                                 cell.RightPadding = 3;
 
-                                // Выравнивание
                                 if (r == 0)
                                 {
                                     cell.Range.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphCenter;
@@ -714,7 +721,6 @@ namespace TitleGen
                         }
                     }
 
-                    // Автонумерация
                     if ((tableConfig.name == "СИ и ИО" || tableConfig.name == "Результаты испытаний") && rowsToInsert.Count > 1)
                     {
                         for (int r = 2; r <= rowsToInsert.Count; r++)
@@ -726,7 +732,6 @@ namespace TitleGen
                         }
                     }
 
-                    // Высота строки
                     foreach (Word.Row row in newTable.Rows)
                     {
                         float minHeight = InchesToPoints(0.2f);
