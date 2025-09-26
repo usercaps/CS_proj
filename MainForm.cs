@@ -558,7 +558,7 @@ namespace TitleGen
             }
         }
 
-        // ✅ ОСНОВНОЙ МЕТОД С ИЗМЕНЁННОЙ ЛОГИКОЙ ДЛЯ "РЕЗУЛЬТАТЫ ИСПЫТАНИЙ"
+        // ✅ ОСНОВНОЙ МЕТОД — ИСПРАВЛЕН
         private void ProcessTablesFromConfig(Word.Document doc, TemplateConfig config)
         {
             foreach (var tableConfig in config.tables)
@@ -569,12 +569,67 @@ namespace TitleGen
                     continue;
                 }
 
+                // === СПЕЦИАЛЬНАЯ ОБРАБОТКА ДЛЯ "РЕЗУЛЬТАТЫ ИСПЫТАНИЙ" ===
+                if (tableConfig.name == "Результаты испытаний")
+                {
+                    try
+                    {
+                        Word.Bookmark resultsBookmark = doc.Bookmarks[tableConfig.bookmark];
+                        Word.Table existingTable = resultsBookmark.Range.Tables[1]; // таблица, в которой находится закладка
+
+                        // Находим индекс строки, где стоит закладка
+                        int insertRowIndex = resultsBookmark.Range.Rows[1].Index;
+
+                        var resultsRows = new List<TableRow>();
+                        foreach (var row in tableConfig.rows)
+                        {
+                            if (testCheckboxes.TryGetValue(row.testName, out CheckBox cb) && cb.Checked)
+                                resultsRows.Add(row);
+                        }
+
+                        if (resultsRows.Count == 0)
+                        {
+                            MessageBox.Show("Нет выбранных испытаний для таблицы 'Результаты испытаний'.", "Предупреждение", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            continue;
+                        }
+
+                        // Вставляем данные НАЧИНАЯ СО СТРОКИ ЗАКЛАДКИ
+                        for (int i = 0; i < resultsRows.Count; i++)
+                        {
+                            int currentRow = insertRowIndex + i; // текущая строка для вставки
+
+                            // Если строка не существует — добавляем её
+                            if (currentRow > existingTable.Rows.Count)
+                            {
+                                existingTable.Rows.Add();
+                            }
+
+                            var rowData = resultsRows[i];
+                            for (int c = 0; c < tableConfig.columns.Count; c++)
+                            {
+                                string text = c < rowData.values.Count ? rowData.values[c] : "";
+                                existingTable.Cell(currentRow, c + 1).Range.Text = text;
+                            }
+
+                            // Нумерация в первой колонке
+                            existingTable.Cell(currentRow, 1).Range.Text = (i + 1).ToString();
+                        }
+
+                        MessageBox.Show($"✅ Данные успешно вставлены в таблицу '{tableConfig.name}'.", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"❌ Ошибка вставки данных в '{tableConfig.name}': {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                    continue;
+                }
+
+                // === ОБЫЧНЫЕ ТАБЛИЦЫ ===
                 Word.Bookmark bookmark = doc.Bookmarks[tableConfig.bookmark];
                 Word.Range insertRange = bookmark.Range;
                 insertRange.Text = "";
 
                 var rowsToInsert = new List<TableRow>();
-
                 foreach (var row in tableConfig.rows)
                 {
                     if (testCheckboxes.TryGetValue(row.testName, out CheckBox cb) && cb.Checked)
@@ -592,7 +647,6 @@ namespace TitleGen
                             break;
                         }
                     }
-
                     foreach (var eq in commonEquipment)
                     {
                         rowsToInsert.Add(new TableRow { testName = anyTest, values = new List<string>(eq.values) });
@@ -614,19 +668,14 @@ namespace TitleGen
 
                 try
                 {
-                    int totalRows = tableConfig.name == "Результаты испытаний"
-                        ? rowsToInsert.Count + 2
-                        : rowsToInsert.Count + 1;
-
                     Word.Table newTable = doc.Tables.Add(
                         insertRange,
-                        totalRows,
+                        rowsToInsert.Count + 1,
                         colCount,
                         Word.WdDefaultTableBehavior.wdWord9TableBehavior,
                         Word.WdAutoFitBehavior.wdAutoFitContent
                     );
 
-                    // Границы
                     foreach (Word.Border border in newTable.Borders)
                     {
                         border.LineStyle = Word.WdLineStyle.wdLineStyleSingle;
@@ -634,134 +683,30 @@ namespace TitleGen
                         border.Color = Word.WdColor.wdColorAutomatic;
                     }
 
-                    // === СПЕЦИАЛЬНАЯ ОБРАБОТКА ДЛЯ "РЕЗУЛЬТАТЫ ИСПЫТАНИЙ" ===
-                    if (tableConfig.name == "Результаты испытаний")
+                    for (int c = 0; c < colCount; c++)
                     {
-                        // Убедимся, что таблица имеет 7 колонок
-                        if (colCount != 7)
-                        {
-                            MessageBox.Show("Ошибка: таблица 'Результаты испытаний' должна иметь 7 колонок.");
-                            continue;
-                        }
-
-                        // --- Заполняем ВСЕ ячейки первых 4 строк ---
-                        // Первая строка
-                        newTable.Cell(1, 1).Range.Text = "№";
-                        newTable.Cell(1, 2).Range.Text = "Наименование объекта испытаний (показателей, характеристик)";
-                        newTable.Cell(1, 3).Range.Text = "Номер пункта ТНПА, устанавливающего" + Environment.NewLine + "БФИД 466535.019 ТУ";
-                        newTable.Cell(1, 4).Range.Text = ""; // будет объединена с (1,3)
-                        newTable.Cell(1, 5).Range.Text = "Нормированное значение показателей, установленных в ТНПА";
-                        newTable.Cell(1, 6).Range.Text = "Фактические значения показателей";
-                        newTable.Cell(1, 7).Range.Text = "Вывод о соответствии требованиям ТНПА";
-
-                        // Вторая строка — оставляем пустой (будет объединена)
-                        for (int c = 1; c <= 7; c++)
-                            newTable.Cell(2, c).Range.Text = "";
-
-                        // Третья строка — подзаголовки
-                        newTable.Cell(3, 1).Range.Text = "";
-                        newTable.Cell(3, 2).Range.Text = "";
-                        newTable.Cell(3, 3).Range.Text = "требования";
-                        newTable.Cell(3, 4).Range.Text = "методы";
-                        newTable.Cell(3, 5).Range.Text = "";
-                        newTable.Cell(3, 6).Range.Text = "";
-                        newTable.Cell(3, 7).Range.Text = "";
-
-                        // Четвёртая строка — нумерация
-                        for (int c = 1; c <= 7; c++)
-                            newTable.Cell(4, c).Range.Text = c.ToString();
-
-
-                        // --- ОБЪЕДИНЕНИЕ ЯЧЕЕК ---
-                        // Объединяем (1,3) и (1,4) → горизонтально
-                        newTable.Cell(1, 3).Merge(newTable.Cell(1, 4));
-
-
-                        // 1. Объединяем колонку № (1,1) → (2,1) → (3,1) → вертикально
-                        Word.Cell col1 = newTable.Cell(1, 1);
-                        col1.Merge(newTable.Cell(2, 1)); // объединили 1 и 2
-                        
-
-                        // 2. Объединяем колонку "Наименование..." (1,2) → (2,2) → (3,2)
-                        Word.Cell col2 = newTable.Cell(1, 2);
-                        col2.Merge(newTable.Cell(2, 2));
-
-                        // 5. Объединяем колонку "Наименование..." (1,5) → (2,5) → (3,5)
-                        Word.Cell col5 = newTable.Cell(1, 5);
-                        col5.Merge(newTable.Cell(2, 5));
-
-                        // 6. Объединяем колонку "Наименование..." (1,6) → (2,6) → (3,6)
-                        Word.Cell col6 = newTable.Cell(1, 6);
-                        col6.Merge(newTable.Cell(2, 6));
-                        
-
-                        // 7. Объединяем колонку "Наименование..." (1,7) → (2,7) → (3,7)
-                        Word.Cell col7 = newTable.Cell(1, 7);
-                        col7.Merge(newTable.Cell(2, 7));
-                        
-
-                        // --- Заполняем ДАННЫЕ начиная с 5-й строки ---
-                        for (int r = 0; r < rowsToInsert.Count; r++)
-                        {
-                            var rowData = rowsToInsert[r];
-                            for (int c = 0; c < colCount; c++)
-                            {
-                                string cellText = c < rowData.values.Count ? rowData.values[c] : "";
-                                newTable.Cell(r + 5, c + 1).Range.Text = cellText;
-                            }
-                        }
-
-                        // Нумерация строк данных
-                        for (int r = 0; r < rowsToInsert.Count; r++)
-                        {
-                            newTable.Cell(r + 5, 1).Range.Text = (r + 1).ToString();
-                        }
-
-                        // --- Форматирование ---
-                        for (int r = 1; r <= 4; r++)
-                        {
-                            for (int c = 1; c <= 7; c++)
-                            {
-                                Word.Cell cell = newTable.Cell(r, c);
-                                cell.Range.Font.Name = "Times New Roman";
-                                cell.Range.Font.Size = 13;
-                                cell.Range.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphCenter;
-                                cell.VerticalAlignment = Word.WdCellVerticalAlignment.wdCellAlignVerticalCenter;
-                                cell.Range.ParagraphFormat.SpaceAfter = 0;
-                                cell.Range.ParagraphFormat.SpaceBefore = 0;
-                            }
-                        }
+                        string headerText = c < tableConfig.columns.Count ? tableConfig.columns[c] : "";
+                        newTable.Cell(1, c + 1).Range.Text = headerText;
                     }
-                    else
+
+                    for (int r = 0; r < rowsToInsert.Count; r++)
                     {
-                        // Обычные таблицы
+                        var rowData = rowsToInsert[r];
                         for (int c = 0; c < colCount; c++)
                         {
-                            string headerText = c < tableConfig.columns.Count ? tableConfig.columns[c] : "";
-                            newTable.Cell(1, c + 1).Range.Text = headerText;
-                        }
-
-                        for (int r = 0; r < rowsToInsert.Count; r++)
-                        {
-                            var rowData = rowsToInsert[r];
-                            for (int c = 0; c < colCount; c++)
-                            {
-                                string cellText = c < rowData.values.Count ? rowData.values[c] : "";
-                                newTable.Cell(r + 2, c + 1).Range.Text = cellText;
-                            }
-                        }
-
-                        // Нумерация для "СИ и ИО"
-                        if (tableConfig.name == "СИ и ИО")
-                        {
-                            for (int r = 0; r < rowsToInsert.Count; r++)
-                            {
-                                newTable.Cell(r + 2, 1).Range.Text = (r + 1).ToString();
-                            }
+                            string cellText = c < rowData.values.Count ? rowData.values[c] : "";
+                            newTable.Cell(r + 2, c + 1).Range.Text = cellText;
                         }
                     }
 
-                    // Форматирование ячеек
+                    if (tableConfig.name == "СИ и ИО")
+                    {
+                        for (int r = 0; r < rowsToInsert.Count; r++)
+                        {
+                            newTable.Cell(r + 2, 1).Range.Text = (r + 1).ToString();
+                        }
+                    }
+
                     for (int r = 1; r <= newTable.Rows.Count; r++)
                     {
                         for (int c = 1; c <= newTable.Columns.Count; c++)
@@ -777,7 +722,7 @@ namespace TitleGen
                             cell.RightPadding = 3;
                             cell.VerticalAlignment = Word.WdCellVerticalAlignment.wdCellAlignVerticalCenter;
 
-                            if (r == 1 || (tableConfig.name == "Результаты испытаний" && r == 2))
+                            if (r == 1)
                             {
                                 cell.Range.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphCenter;
                             }
@@ -791,7 +736,6 @@ namespace TitleGen
                         }
                     }
 
-                    // Высота строк
                     foreach (Word.Row row in newTable.Rows)
                     {
                         float minHeight = InchesToPoints(0.2f);
@@ -806,12 +750,11 @@ namespace TitleGen
                         }
                     }
 
-                    // Отступ после таблицы
                     Word.Range afterTable = newTable.Range;
                     afterTable.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
                     afterTable.InsertAfter("\n");
 
-                    MessageBox.Show($"✅ Таблица '{tableConfig.name}' успешно создана по закладке '{tableConfig.bookmark}'.", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBox.Show($"✅ Таблица '{tableConfig.name}' успешно создана.", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
                 catch (Exception ex)
                 {
