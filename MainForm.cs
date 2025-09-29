@@ -558,7 +558,7 @@ namespace TitleGen
             }
         }
 
-        // ✅ ОСНОВНОЙ МЕТОД — ИСПРАВЛЕН
+        // ✅ ОСНОВНОЙ МЕТОД — ВСЕ ТАБЛИЦЫ ОДИНАКОВО
         private void ProcessTablesFromConfig(Word.Document doc, TemplateConfig config)
         {
             foreach (var tableConfig in config.tables)
@@ -569,196 +569,72 @@ namespace TitleGen
                     continue;
                 }
 
-                // === СПЕЦИАЛЬНАЯ ОБРАБОТКА ДЛЯ "РЕЗУЛЬТАТЫ ИСПЫТАНИЙ" ===
-                if (tableConfig.name == "Результаты испытаний")
-                {
-                    try
-                    {
-                        Word.Bookmark resultsBookmark = doc.Bookmarks[tableConfig.bookmark];
-                        Word.Table existingTable = resultsBookmark.Range.Tables[1]; // таблица, в которой находится закладка
-
-                        // Находим индекс строки, где стоит закладка
-                        int insertRowIndex = resultsBookmark.Range.Rows[1].Index;
-
-                        var resultsRows = new List<TableRow>();
-                        foreach (var row in tableConfig.rows)
-                        {
-                            if (testCheckboxes.TryGetValue(row.testName, out CheckBox cb) && cb.Checked)
-                                resultsRows.Add(row);
-                        }
-
-                        if (resultsRows.Count == 0)
-                        {
-                            MessageBox.Show("Нет выбранных испытаний для таблицы 'Результаты испытаний'.", "Предупреждение", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                            continue;
-                        }
-
-                        // Вставляем данные НАЧИНАЯ СО СТРОКИ ЗАКЛАДКИ
-                        for (int i = 0; i < resultsRows.Count; i++)
-                        {
-                            int currentRow = insertRowIndex + i; // текущая строка для вставки
-
-                            // Если строка не существует — добавляем её
-                            if (currentRow > existingTable.Rows.Count)
-                            {
-                                existingTable.Rows.Add();
-                            }
-
-                            var rowData = resultsRows[i];
-                            for (int c = 0; c < tableConfig.columns.Count; c++)
-                            {
-                                string text = c < rowData.values.Count ? rowData.values[c] : "";
-                                existingTable.Cell(currentRow, c + 1).Range.Text = text;
-                            }
-
-                            // Нумерация в первой колонке
-                            existingTable.Cell(currentRow, 1).Range.Text = (i + 1).ToString();
-                        }
-
-                        MessageBox.Show($"✅ Данные успешно вставлены в таблицу '{tableConfig.name}'.", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show($"❌ Ошибка вставки данных в '{tableConfig.name}': {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
-                    continue;
-                }
-
-                // === ОБЫЧНЫЕ ТАБЛИЦЫ ===
-                Word.Bookmark bookmark = doc.Bookmarks[tableConfig.bookmark];
-                Word.Range insertRange = bookmark.Range;
-                insertRange.Text = "";
-
-                var rowsToInsert = new List<TableRow>();
-                foreach (var row in tableConfig.rows)
-                {
-                    if (testCheckboxes.TryGetValue(row.testName, out CheckBox cb) && cb.Checked)
-                        rowsToInsert.Add(row);
-                }
-
-                if (tableConfig.name == "СИ и ИО")
-                {
-                    string anyTest = "";
-                    foreach (var kvp in testCheckboxes)
-                    {
-                        if (kvp.Value.Checked)
-                        {
-                            anyTest = kvp.Key;
-                            break;
-                        }
-                    }
-                    foreach (var eq in commonEquipment)
-                    {
-                        rowsToInsert.Add(new TableRow { testName = anyTest, values = new List<string>(eq.values) });
-                    }
-                }
-
-                if (rowsToInsert.Count == 0)
-                {
-                    MessageBox.Show($"Таблица '{tableConfig.name}' пуста. Пропуск.", "Предупреждение", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    continue;
-                }
-
-                int colCount = tableConfig.columns?.Count ?? 0;
-                if (colCount <= 0)
-                {
-                    MessageBox.Show($"Таблица '{tableConfig.name}' не имеет колонок. Пропуск.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    continue;
-                }
-
                 try
                 {
-                    Word.Table newTable = doc.Tables.Add(
-                        insertRange,
-                        rowsToInsert.Count + 1,
-                        colCount,
-                        Word.WdDefaultTableBehavior.wdWord9TableBehavior,
-                        Word.WdAutoFitBehavior.wdAutoFitContent
-                    );
+                    Word.Bookmark bookmark = doc.Bookmarks[tableConfig.bookmark];
+                    Word.Table existingTable = bookmark.Range.Tables[1];
+                    int insertRowIndex = bookmark.Range.Rows[1].Index;
 
-                    foreach (Word.Border border in newTable.Borders)
+                    var rowsToInsert = new List<TableRow>();
+                    foreach (var row in tableConfig.rows)
                     {
-                        border.LineStyle = Word.WdLineStyle.wdLineStyleSingle;
-                        border.LineWidth = Word.WdLineWidth.wdLineWidth050pt;
-                        border.Color = Word.WdColor.wdColorAutomatic;
+                        if (testCheckboxes.TryGetValue(row.testName, out CheckBox cb) && cb.Checked)
+                            rowsToInsert.Add(row);
                     }
 
-                    for (int c = 0; c < colCount; c++)
-                    {
-                        string headerText = c < tableConfig.columns.Count ? tableConfig.columns[c] : "";
-                        newTable.Cell(1, c + 1).Range.Text = headerText;
-                    }
-
-                    for (int r = 0; r < rowsToInsert.Count; r++)
-                    {
-                        var rowData = rowsToInsert[r];
-                        for (int c = 0; c < colCount; c++)
-                        {
-                            string cellText = c < rowData.values.Count ? rowData.values[c] : "";
-                            newTable.Cell(r + 2, c + 1).Range.Text = cellText;
-                        }
-                    }
-
+                    // Добавляем общее оборудование для "СИ и ИО"
                     if (tableConfig.name == "СИ и ИО")
                     {
-                        for (int r = 0; r < rowsToInsert.Count; r++)
+                        string anyTest = "";
+                        foreach (var kvp in testCheckboxes)
                         {
-                            newTable.Cell(r + 2, 1).Range.Text = (r + 1).ToString();
-                        }
-                    }
-
-                    for (int r = 1; r <= newTable.Rows.Count; r++)
-                    {
-                        for (int c = 1; c <= newTable.Columns.Count; c++)
-                        {
-                            Word.Cell cell = newTable.Cell(r, c);
-                            cell.Range.Font.Name = "Times New Roman";
-                            cell.Range.Font.Size = 13;
-                            cell.Range.ParagraphFormat.SpaceAfter = 0;
-                            cell.Range.ParagraphFormat.SpaceBefore = 0;
-                            cell.TopPadding = 0;
-                            cell.BottomPadding = 0;
-                            cell.LeftPadding = 3;
-                            cell.RightPadding = 3;
-                            cell.VerticalAlignment = Word.WdCellVerticalAlignment.wdCellAlignVerticalCenter;
-
-                            if (r == 1)
+                            if (kvp.Value.Checked)
                             {
-                                cell.Range.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphCenter;
-                            }
-                            else
-                            {
-                                if (c == 1)
-                                    cell.Range.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphCenter;
-                                else
-                                    cell.Range.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphLeft;
+                                anyTest = kvp.Key;
+                                break;
                             }
                         }
+                        foreach (var eq in commonEquipment)
+                        {
+                            rowsToInsert.Add(new TableRow { testName = anyTest, values = new List<string>(eq.values) });
+                        }
                     }
 
-                    foreach (Word.Row row in newTable.Rows)
+                    if (rowsToInsert.Count == 0)
                     {
-                        float minHeight = InchesToPoints(0.2f);
-                        if (minHeight >= 1 && minHeight <= 1000)
-                        {
-                            row.HeightRule = Word.WdRowHeightRule.wdRowHeightAtLeast;
-                            row.Height = minHeight;
-                        }
-                        else
-                        {
-                            row.HeightRule = Word.WdRowHeightRule.wdRowHeightAuto;
-                        }
+                        MessageBox.Show($"Нет выбранных испытаний для таблицы '{tableConfig.name}'.", "Предупреждение", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        continue;
                     }
 
-                    Word.Range afterTable = newTable.Range;
-                    afterTable.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
-                    afterTable.InsertAfter("\n");
+                    for (int i = 0; i < rowsToInsert.Count; i++)
+                    {
+                        int currentRow = insertRowIndex + i;
 
-                    MessageBox.Show($"✅ Таблица '{tableConfig.name}' успешно создана.", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        if (currentRow > existingTable.Rows.Count)
+                        {
+                            existingTable.Rows.Add();
+                        }
+
+                        var rowData = rowsToInsert[i];
+                        for (int c = 0; c < tableConfig.columns.Count; c++)
+                        {
+                            string text = c < rowData.values.Count ? rowData.values[c] : "";
+                            existingTable.Cell(currentRow, c + 1).Range.Text = text;
+
+                            // ✅ Шрифт 13 для всех ячеек
+                            existingTable.Cell(currentRow, c + 1).Range.Font.Name = "Times New Roman";
+                            existingTable.Cell(currentRow, c + 1).Range.Font.Size = 13;
+                        }
+
+                        // Нумерация
+                        existingTable.Cell(currentRow, 1).Range.Text = (i + 1).ToString();
+                    }
+
+                    MessageBox.Show($"✅ Данные успешно вставлены в таблицу '{tableConfig.name}'.", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"❌ Ошибка создания таблицы '{tableConfig.name}': {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show($"❌ Ошибка вставки данных в '{tableConfig.name}': {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
         }
