@@ -19,5 +19,6 @@ namespace TitleGen
     {
         public string testName { get; set; }
         public List<string> values { get; set; }
+        public List<string> valuesTwo { get; set; }
     }
 }

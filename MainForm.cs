@@ -11,37 +11,32 @@ using Newtonsoft.Json;
 
 namespace TitleGen
 {
-    /// <summary>
-    /// Основная форма приложения для генерации протоколов в формате DOCX.
-    /// </summary>
     public partial class MainForm : Form
     {
-        // UI-элементы
         private TabControl tabControl;
         private TabPage tabParams, tabTableEditor;
         private Panel testsPanel, inputsPanel;
         private RadioButton radioTip, radioPeriod, radioTest;
+        private ComboBox cmbItemMode;
         private TextBox txtTemplate;
         private Button btnGenerate;
         private ComboBox cmbTables;
         private DataGridView dgvRows;
         private Button btnAddRow, btnDeleteRow, btnSaveConfig;
 
-        // Логика
         private Dictionary<string, TextBox> inputs = new Dictionary<string, TextBox>();
         private Dictionary<string, CheckBox> testCheckboxes = new Dictionary<string, CheckBox>();
+
         private TemplateConfig currentConfig;
         private string currentConfigPath;
         private TableConfig currentTable;
 
-        // Общее оборудование для таблицы "СИ и ИО"
         private List<TableRow> commonEquipment = new List<TableRow>
         {
             new TableRow { testName = "*", values = new List<string> { "", "Барометр-анероид", "М110", "126", "04.25 - 04.26" } },
             new TableRow { testName = "*", values = new List<string> { "", "Комбинированный прибор ", "Testo 625", "61064548/709", "05.25 - 05.26" } }
         };
 
-        // Конструктор
         public MainForm()
         {
             Text = "Генерация протокола (DocX)";
@@ -49,12 +44,9 @@ namespace TitleGen
             Height = 600;
             StartPosition = FormStartPosition.CenterScreen;
             AutoScroll = true;
-            BuildStaticUI(); // Создаём интерфейс
+            BuildStaticUI();
         }
 
-        /// <summary>
-        /// Создаёт статический UI (вкладки и панели).
-        /// </summary>
         private void BuildStaticUI()
         {
             tabControl = new TabControl { Left = 10, Top = 10, Width = 820, Height = 550 };
@@ -69,12 +61,8 @@ namespace TitleGen
             Controls.Add(tabControl);
         }
 
-        /// <summary>
-        /// Создаёт вкладку "Параметры": чекбоксы испытаний, выбор шаблона, поля ввода.
-        /// </summary>
         private void BuildParamsTab(TabPage page)
         {
-            // Панель с чекбоксами испытаний
             testsPanel = new Panel
             {
                 Left = 10,
@@ -86,7 +74,6 @@ namespace TitleGen
             };
             page.Controls.Add(testsPanel);
 
-            // Список доступных испытаний
             string[] tests = {
                 "Повышенная температура", "Пониженная температура", "Циклы температуры",
                 "Давление рабочее", "Давление предельное",
@@ -104,10 +91,8 @@ namespace TitleGen
                 y += 25;
             }
 
-            // Радиокнопки выбора типа шаблона
             radioTip = new RadioButton { Text = "Типовые", Left = 280, Top = 20, AutoSize = true };
             radioPeriod = new RadioButton { Text = "Периодические", Left = 380, Top = 20, AutoSize = true };
-            radioTest = new RadioButton { Text = "Тест", Left = 520, Top = 20, AutoSize = true };
             txtTemplate = new TextBox { Left = 280, Top = 60, Width = 500 };
 
             foreach (var rb in new[] { radioTip, radioPeriod, radioTest })
@@ -117,22 +102,35 @@ namespace TitleGen
             }
             page.Controls.Add(txtTemplate);
 
-            // Панель для полей ввода (плейсхолдеры из шаблона)
+            // ComboBox для выбора количества изделий
+            var lblItemMode = new Label { Text = "Количество изделий:", Left = 280, Top = 90, AutoSize = true };
+            cmbItemMode = new ComboBox
+            {
+                Left = 420,
+                Top = 88,
+                Width = 120,
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
+            cmbItemMode.Items.Add("1 изделие");
+            cmbItemMode.Items.Add("2 изделия");
+            cmbItemMode.SelectedIndex = 0;
+            page.Controls.Add(lblItemMode);
+            page.Controls.Add(cmbItemMode);
+
             inputsPanel = new Panel
             {
                 Left = 280,
-                Top = 100,
+                Top = 120,
                 Width = 500,
-                Height = 300,
+                Height = 280,
                 AutoScroll = true,
                 BorderStyle = BorderStyle.FixedSingle
             };
             page.Controls.Add(inputsPanel);
 
-            // Кнопка генерации
             btnGenerate = new Button
             {
-                Text = "Сформировать DOCX",
+                Text = "Создать протокол",
                 Left = 280,
                 Top = 420,
                 Width = 200
@@ -141,9 +139,6 @@ namespace TitleGen
             page.Controls.Add(btnGenerate);
         }
 
-        /// <summary>
-        /// Создаёт вкладку "Редактор таблиц" для редактирования config.json.
-        /// </summary>
         private void BuildTableEditorTab(TabPage page)
         {
             var lblTable = new Label { Text = "Выберите таблицу:", Left = 20, Top = 20, AutoSize = true };
@@ -182,9 +177,6 @@ namespace TitleGen
             page.Controls.AddRange(new Control[] { lblTable, cmbTables, dgvRows, btnAddRow, btnDeleteRow, btnSaveConfig });
         }
 
-        /// <summary>
-        /// Обработчик выбора типа шаблона (типовой/периодический/тест).
-        /// </summary>
         private void TemplateSelectorChanged(object sender, EventArgs e)
         {
             string baseDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Templates");
@@ -197,8 +189,8 @@ namespace TitleGen
 
             if (File.Exists(txtTemplate.Text))
             {
-                BuildDynamicForm(txtTemplate.Text); // Загружаем плейсхолдеры
-                LoadConfigForEditor(txtTemplate.Text); // Загружаем config.json
+                BuildDynamicForm(txtTemplate.Text);
+                LoadConfigForEditor(txtTemplate.Text);
             }
             else
             {
@@ -207,9 +199,6 @@ namespace TitleGen
             }
         }
 
-        /// <summary>
-        /// Загружает или создаёт config.json для редактора таблиц.
-        /// </summary>
         private void LoadConfigForEditor(string templatePath)
         {
             string configPath = Path.Combine(Path.GetDirectoryName(templatePath), "config.json");
@@ -236,9 +225,6 @@ namespace TitleGen
             PopulateTableDropdown();
         }
 
-        /// <summary>
-        /// Создаёт конфигурацию по умолчанию (если config.json отсутствует).
-        /// </summary>
         private TemplateConfig CreateDefaultConfig()
         {
             return new TemplateConfig
@@ -249,7 +235,13 @@ namespace TitleGen
                     {
                         name = "Программа испытаний",
                         bookmark = "Table_Program",
-                        columns = new List<string> { "№", "Наименование объекта испытаний (показателей, характеристик)", "Наименование ТНПА, устанавливающего метод испытаний", "Примечание" },
+                        columns = new List<string>
+                        {
+                            "№",
+                            "Наименование объекта испытаний (показателей, характеристик)",
+                            "Наименование ТНПА, устанавливающего метод испытаний",
+                            "Примечание"
+                        },
                         rows = new List<TableRow>
                         {
                             new TableRow { testName = "Повышенная температура", values = new List<string> { "1", "Проверка требований к воздействию повышенной рабочей и повышенной предельной температуры", "4.7.1", "" } },
@@ -263,7 +255,14 @@ namespace TitleGen
                     {
                         name = "СИ и ИО",
                         bookmark = "Table_Equipment",
-                        columns = new List<string> { "№", "Наименование испытательного оборудования и средств измерений", "Тип, марка", "Номер", "Период аттестации, калибровки" },
+                        columns = new List<string>
+                        {
+                            "№",
+                            "Наименование испытательного оборудования и средств измерений",
+                            "Тип, марка",
+                            "Номер",
+                            "Период аттестации, калибровки"
+                        },
                         rows = new List<TableRow>
                         {
                             new TableRow { testName = "Вибрация", values = new List<string> { "", "Вибростенд LDS V408", "VS-408-001", "2025-11-30", "" } },
@@ -279,7 +278,16 @@ namespace TitleGen
                     {
                         name = "Результаты испытаний",
                         bookmark = "Table_Results",
-                        columns = new List<string> { "№", "Наименование объекта испытаний (показателей, характеристик)", "ТТЗ (требования)", "ПМ (методы)", "Нормированное значение показателей, установленных в ТНПА", "Фактические значения показателей", "Вывод о соответствии требованиям ТНПА" },
+                        columns = new List<string>
+                        {
+                            "№",
+                            "Наименование объекта испытаний (показателей, характеристик)",
+                            "ТТЗ (требования)",
+                            "ПМ (методы)",
+                            "Нормированное значение показателей, установленных в ТНПА",
+                            "Фактические значения показателей",
+                            "Вывод о соответствии требованиям ТНПА"
+                        },
                         rows = new List<TableRow>
                         {
                             new TableRow { testName = "Повышенная температура", values = new List<string> { "1", "Проверка воздействия повышенной температуры", "4.7.1", "ГОСТ Р 57200-2016", "от -60 до +85°C", "+85°C", "Соответствует" } },
@@ -294,9 +302,6 @@ namespace TitleGen
             };
         }
 
-        /// <summary>
-        /// Заполняет выпадающий список таблицами из config.json.
-        /// </summary>
         private void PopulateTableDropdown()
         {
             cmbTables.Items.Clear();
@@ -307,9 +312,6 @@ namespace TitleGen
                 cmbTables.SelectedIndex = 0;
         }
 
-        /// <summary>
-        /// Обработчик выбора таблицы в редакторе.
-        /// </summary>
         private void cmbTables_SelectedIndexChanged(object sender, EventArgs e)
         {
             if (currentConfig?.tables == null || cmbTables.SelectedIndex < 0) return;
@@ -317,9 +319,6 @@ namespace TitleGen
             BindTableToGrid();
         }
 
-        /// <summary>
-        /// Привязывает данные таблицы к DataGridView.
-        /// </summary>
         private void BindTableToGrid()
         {
             dgvRows.Columns.Clear();
@@ -342,7 +341,7 @@ namespace TitleGen
                 if (testCheckboxes.TryGetValue(row.testName, out CheckBox cb) && !cb.Checked)
                     status = "Скрыто";
                 values.Add(status);
-                values.AddRange(row.values);
+                values.AddRange(row.values ?? new List<string>());
                 var rowIndex = dgvRows.Rows.Add(values.ToArray());
                 if (status == "Скрыто")
                 {
@@ -359,9 +358,6 @@ namespace TitleGen
             }
         }
 
-        /// <summary>
-        /// Настраивает столбец "Привязка к чекбоксу" как выпадающий список.
-        /// </summary>
         private void SetupTestNameComboBoxColumn()
         {
             if (dgvRows.Columns["testName"] is DataGridViewComboBoxColumn) return;
@@ -380,9 +376,6 @@ namespace TitleGen
             dgvRows.Columns.Insert(colIndex, comboBoxColumn);
         }
 
-        /// <summary>
-        /// Обновляет статус строк (Активно/Скрыто) при изменении чекбоксов.
-        /// </summary>
         private void UpdateRowStatuses()
         {
             if (dgvRows.Columns["status"] == null) return;
@@ -407,9 +400,6 @@ namespace TitleGen
             }
         }
 
-        /// <summary>
-        /// Добавляет новую строку в редакторе таблиц.
-        /// </summary>
         private void btnAddRow_Click(object sender, EventArgs e)
         {
             if (currentTable == null) return;
@@ -418,18 +408,12 @@ namespace TitleGen
                 dgvRows.Rows[rowIndex].Cells["testName"].Value = testCheckboxes.Keys.First();
         }
 
-        /// <summary>
-        /// Удаляет выбранную строку в редакторе таблиц.
-        /// </summary>
         private void btnDeleteRow_Click(object sender, EventArgs e)
         {
             if (dgvRows.SelectedRows.Count == 0) return;
             dgvRows.Rows.RemoveAt(dgvRows.SelectedRows[0].Index);
         }
 
-        /// <summary>
-        /// Сохраняет изменения из редактора в config.json.
-        /// </summary>
         private void btnSaveConfig_Click(object sender, EventArgs e)
         {
             if (currentConfig == null || currentTable == null)
@@ -466,9 +450,6 @@ namespace TitleGen
             }
         }
 
-        /// <summary>
-        /// Создаёт динамические поля ввода на основе плейсхолдеров в шаблоне.
-        /// </summary>
         private void BuildDynamicForm(string templatePath)
         {
             inputsPanel.Controls.Clear();
@@ -486,9 +467,6 @@ namespace TitleGen
             }
         }
 
-        /// <summary>
-        /// Извлекает плейсхолдеры вида {{имя}} из Word-документа.
-        /// </summary>
         private List<string> ExtractPlaceholders(string path)
         {
             var placeholders = new List<string>();
@@ -516,9 +494,6 @@ namespace TitleGen
             return placeholders;
         }
 
-        /// <summary>
-        /// Обработчик кнопки "Сформировать DOCX".
-        /// </summary>
         private void btnGenerate_Click(object sender, EventArgs e)
         {
             if (!File.Exists(txtTemplate.Text))
@@ -545,14 +520,14 @@ namespace TitleGen
                     wordApp = new Word.Application();
                     doc = wordApp.Documents.Open(txtTemplate.Text, ReadOnly: false, Visible: false);
 
-                    ReplacePlaceholdersInDocument(doc); // Заменяем плейсхолдеры
+                    ReplacePlaceholdersInDocument(doc);
 
                     var config = currentConfig;
-                    ProcessTablesFromConfig(doc, config); // Вставляем таблицы
-                    ReplacePlaceholdersInDocument(doc); // Повторная замена (на случай, если таблицы содержат плейсхолдеры)
+                    ProcessTablesFromConfig(doc, config);
+                    ReplacePlaceholdersInDocument(doc);
 
                     doc.SaveAs2(sfd.FileName);
-                    MessageBox.Show("DOCX успешно создан:\n" + sfd.FileName);
+                    MessageBox.Show("Протокол успешно создан:\n" + sfd.FileName);
                 }
                 catch (Exception ex)
                 {
@@ -567,9 +542,6 @@ namespace TitleGen
             }
         }
 
-        /// <summary>
-        /// Заменяет плейсхолдеры в документе на значения из полей ввода.
-        /// </summary>
         private void ReplacePlaceholdersInDocument(Word.Document doc)
         {
             foreach (var pair in inputs)
@@ -581,9 +553,6 @@ namespace TitleGen
             }
         }
 
-        /// <summary>
-        /// Основной метод: вставка данных из config.json в таблицы Word по закладкам.
-        /// </summary>
         private void ProcessTablesFromConfig(Word.Document doc, TemplateConfig config)
         {
             foreach (var tableConfig in config.tables)
@@ -598,12 +567,10 @@ namespace TitleGen
                 {
                     if (tableConfig.name == "Результаты испытаний")
                     {
-                        // === СПЕЦИАЛЬНАЯ ЛОГИКА: ОТДЕЛЬНАЯ ТАБЛИЦА НА КАЖДЫЙ ЧЕКБОКС ===
                         Word.Bookmark bookmark = doc.Bookmarks[tableConfig.bookmark];
                         var range = bookmark.Range;
-                        range.Text = ""; // Удаляем исходную таблицу
+                        range.Text = "";
 
-                        // Группируем строки по testName
                         var groups = new Dictionary<string, List<TableRow>>();
                         foreach (var row in tableConfig.rows)
                         {
@@ -621,19 +588,31 @@ namespace TitleGen
                             continue;
                         }
 
-                        // Для каждой группы создаём отдельную таблицу
                         foreach (var group in groups)
                         {
-                            var rowsInGroup = group.Value;
+                            // Используем ComboBox для выбора режима
+                            bool isTwoItems = (cmbItemMode?.SelectedIndex == 1);
 
-                            // Создаём таблицу
+                            var rowsInGroup = new List<TableRow>();
+                            foreach (var row in group.Value)
+                            {
+                                var selectedValues = (isTwoItems && row.valuesTwo != null)
+                                    ? row.valuesTwo
+                                    : row.values;
+
+                                rowsInGroup.Add(new TableRow
+                                {
+                                    testName = row.testName,
+                                    values = selectedValues ?? new List<string>()
+                                });
+                            }
+
                             Word.Table newTable = doc.Tables.Add(
                                 Range: range,
                                 NumRows: rowsInGroup.Count,
                                 NumColumns: tableConfig.columns.Count
                             );
 
-                            // Заполняем данными (values уже содержит все столбцы, включая №)
                             for (int i = 0; i < rowsInGroup.Count; i++)
                             {
                                 var rowData = rowsInGroup[i];
@@ -648,7 +627,6 @@ namespace TitleGen
                                 }
                             }
 
-                            // Добавляем чёрные границы
                             newTable.Borders.Enable = 1;
                             newTable.Borders.OutsideLineStyle = Word.WdLineStyle.wdLineStyleSingle;
                             newTable.Borders.InsideLineStyle = Word.WdLineStyle.wdLineStyleSingle;
@@ -657,18 +635,16 @@ namespace TitleGen
 
                             newTable.AutoFitBehavior(Word.WdAutoFitBehavior.wdAutoFitContent);
 
-                            // Отступ после таблицы
                             range = newTable.Range;
                             range.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
                             range.Text = "\n";
                             range.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
                         }
-
-                        MessageBox.Show($"✅ Создано {groups.Count} таблиц(ы) для 'Результаты испытаний'.", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        //сообщение что все ок
+                        //MessageBox.Show($"Создано {groups.Count} таблиц(ы) для 'Результаты испытаний'.", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                     else
                     {
-                        // === СТАНДАРТНАЯ ЛОГИКА: ВСТАВКА В СУЩЕСТВУЮЩУЮ ТАБЛИЦУ ===
                         Word.Bookmark bookmark = doc.Bookmarks[tableConfig.bookmark];
                         Word.Table existingTable = bookmark.Range.Tables[1];
                         int insertRowIndex = bookmark.Range.Rows[1].Index;
@@ -680,7 +656,6 @@ namespace TitleGen
                                 rowsToInsert.Add(row);
                         }
 
-                        // Для "СИ и ИО" добавляем общее оборудование
                         if (tableConfig.name == "СИ и ИО")
                         {
                             string anyTest = "";
@@ -704,7 +679,6 @@ namespace TitleGen
                             continue;
                         }
 
-                        // Вставляем строки
                         for (int i = 0; i < rowsToInsert.Count; i++)
                         {
                             int currentRow = insertRowIndex + i;
@@ -720,11 +694,10 @@ namespace TitleGen
                                 existingTable.Cell(currentRow, c + 1).Range.Font.Size = 13;
                             }
 
-                            // Нумерация (столбец №)
                             existingTable.Cell(currentRow, 1).Range.Text = (i + 1).ToString();
                         }
-
-                        MessageBox.Show($"✅ Данные успешно вставлены в таблицу '{tableConfig.name}'.", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        //сообщение что все ок
+                        //MessageBox.Show($"✅ Данные успешно вставлены в таблицу '{tableConfig.name}'.", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                 }
                 catch (Exception ex)
@@ -734,4 +707,25 @@ namespace TitleGen
             }
         }
     }
+
+    //// === МОДЕЛИ ДЛЯ JSON ===
+    //public class TemplateConfig
+    //{
+    //    public List<TableConfig> tables { get; set; }
+    //}
+
+    //public class TableConfig
+    //{
+    //    public string name { get; set; }
+    //    public string bookmark { get; set; }
+    //    public List<string> columns { get; set; }
+    //    public List<TableRow> rows { get; set; }
+    //}
+
+    //public class TableRow
+    //{
+    //    public string testName { get; set; }
+    //    public List<string> values { get; set; }
+    //    public List<string> valuesTwo { get; set; } // поддержка 2 изделий
+    //}
 }
