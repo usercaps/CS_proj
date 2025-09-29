@@ -17,7 +17,7 @@ namespace TitleGen
         private TabPage tabParams, tabTableEditor;
         private Panel testsPanel, inputsPanel;
         private RadioButton radioTip, radioPeriod, radioTest;
-        private ComboBox cmbItemMode;
+        private ComboBox cmbItemMode; // ← ComboBox для выбора количества изделий
         private TextBox txtTemplate;
         private Button btnGenerate;
         private ComboBox cmbTables;
@@ -39,7 +39,7 @@ namespace TitleGen
 
         public MainForm()
         {
-            Text = "Генерация протокола (DocX)";
+            Text = "Генерация протокола";
             Width = 850;
             Height = 600;
             StartPosition = FormStartPosition.CenterScreen;
@@ -93,6 +93,7 @@ namespace TitleGen
 
             radioTip = new RadioButton { Text = "Типовые", Left = 280, Top = 20, AutoSize = true };
             radioPeriod = new RadioButton { Text = "Периодические", Left = 380, Top = 20, AutoSize = true };
+            radioTest = new RadioButton { Text = "Тест", Left = 520, Top = 20, AutoSize = true };
             txtTemplate = new TextBox { Left = 280, Top = 60, Width = 500 };
 
             foreach (var rb in new[] { radioTip, radioPeriod, radioTest })
@@ -117,6 +118,12 @@ namespace TitleGen
             page.Controls.Add(lblItemMode);
             page.Controls.Add(cmbItemMode);
 
+            // Обработчик для динамического показа/скрытия полей
+            cmbItemMode.SelectedIndexChanged += (s, e) =>
+            {
+                UpdateSpecialFieldsVisibility();
+            };
+
             inputsPanel = new Panel
             {
                 Left = 280,
@@ -130,7 +137,7 @@ namespace TitleGen
 
             btnGenerate = new Button
             {
-                Text = "Создать протокол",
+                Text = "Сформировать Протокол",
                 Left = 280,
                 Top = 420,
                 Width = 200
@@ -168,7 +175,7 @@ namespace TitleGen
 
             btnAddRow = new Button { Text = "Добавить строку", Left = 20, Top = 420, Width = 150 };
             btnDeleteRow = new Button { Text = "Удалить строку", Left = 180, Top = 420, Width = 150 };
-            btnSaveConfig = new Button { Text = "Сохранить config.json", Left = 600, Top = 420, Width = 180 };
+            btnSaveConfig = new Button { Text = "Сохранить параметры", Left = 600, Top = 420, Width = 180 };
 
             btnAddRow.Click += btnAddRow_Click;
             btnDeleteRow.Click += btnDeleteRow_Click;
@@ -184,13 +191,12 @@ namespace TitleGen
                 txtTemplate.Text = Path.Combine(baseDir, "tipovye.docx");
             else if (radioPeriod.Checked)
                 txtTemplate.Text = Path.Combine(baseDir, "periodich.docx");
-            else if (radioTest.Checked)
-                txtTemplate.Text = Path.Combine(baseDir, "test.docx");
 
             if (File.Exists(txtTemplate.Text))
             {
                 BuildDynamicForm(txtTemplate.Text);
                 LoadConfigForEditor(txtTemplate.Text);
+                UpdateSpecialFieldsVisibility(); // ← Обновляем видимость после загрузки
             }
             else
             {
@@ -454,6 +460,7 @@ namespace TitleGen
         {
             inputsPanel.Controls.Clear();
             inputs.Clear();
+
             var placeholders = ExtractPlaceholders(templatePath);
             int y = 10;
             foreach (var ph in placeholders)
@@ -590,7 +597,6 @@ namespace TitleGen
 
                         foreach (var group in groups)
                         {
-                            // Используем ComboBox для выбора режима
                             bool isTwoItems = (cmbItemMode?.SelectedIndex == 1);
 
                             var rowsInGroup = new List<TableRow>();
@@ -640,8 +646,8 @@ namespace TitleGen
                             range.Text = "\n";
                             range.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
                         }
-                        //сообщение что все ок
-                        //MessageBox.Show($"Создано {groups.Count} таблиц(ы) для 'Результаты испытаний'.", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                        //MessageBox.Show($"✅ Создано {groups.Count} таблиц(ы) для 'Результаты испытаний'.", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                     else
                     {
@@ -696,7 +702,7 @@ namespace TitleGen
 
                             existingTable.Cell(currentRow, 1).Range.Text = (i + 1).ToString();
                         }
-                        //сообщение что все ок
+
                         //MessageBox.Show($"✅ Данные успешно вставлены в таблицу '{tableConfig.name}'.", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                 }
@@ -706,26 +712,31 @@ namespace TitleGen
                 }
             }
         }
+
+        // === МЕТОД ДЛЯ УПРАВЛЕНИЯ ВИДИМОСТЬЮ ПОЛЕЙ ===
+        private void UpdateSpecialFieldsVisibility()
+        {
+            bool isTwoItems = (cmbItemMode?.SelectedIndex == 1);
+
+            // Имена плейсхолдеров, которые должны появляться/исчезать
+            string[] specialFields = { "Имя_изделия2", "Номер_изделия2", "Рег_номер_изделия2" };
+
+            foreach (string field in specialFields)
+            {
+                if (inputs.TryGetValue(field, out TextBox tb))
+                {
+                    tb.Visible = isTwoItems;
+                    // Ищем и скрываем/показываем метку (Label)
+                    foreach (Control ctrl in inputsPanel.Controls)
+                    {
+                        if (ctrl is Label lbl && lbl.Text == field)
+                        {
+                            lbl.Visible = isTwoItems;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
     }
-
-    //// === МОДЕЛИ ДЛЯ JSON ===
-    //public class TemplateConfig
-    //{
-    //    public List<TableConfig> tables { get; set; }
-    //}
-
-    //public class TableConfig
-    //{
-    //    public string name { get; set; }
-    //    public string bookmark { get; set; }
-    //    public List<string> columns { get; set; }
-    //    public List<TableRow> rows { get; set; }
-    //}
-
-    //public class TableRow
-    //{
-    //    public string testName { get; set; }
-    //    public List<string> values { get; set; }
-    //    public List<string> valuesTwo { get; set; } // поддержка 2 изделий
-    //}
 }
