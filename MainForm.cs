@@ -558,7 +558,7 @@ namespace TitleGen
             }
         }
 
-        // ✅ ОСНОВНОЙ МЕТОД — ВСЕ ТАБЛИЦЫ ОДИНАКОВО
+        // ✅ ОСНОВНОЙ МЕТОД — С УЧЁТОМ НОВОЙ ЛОГИКИ ДЛЯ "РЕЗУЛЬТАТЫ"
         private void ProcessTablesFromConfig(Word.Document doc, TemplateConfig config)
         {
             foreach (var tableConfig in config.tables)
@@ -571,66 +571,141 @@ namespace TitleGen
 
                 try
                 {
-                    Word.Bookmark bookmark = doc.Bookmarks[tableConfig.bookmark];
-                    Word.Table existingTable = bookmark.Range.Tables[1];
-                    int insertRowIndex = bookmark.Range.Rows[1].Index;
-
-                    var rowsToInsert = new List<TableRow>();
-                    foreach (var row in tableConfig.rows)
+                    if (tableConfig.name == "Результаты испытаний")
                     {
-                        if (testCheckboxes.TryGetValue(row.testName, out CheckBox cb) && cb.Checked)
-                            rowsToInsert.Add(row);
-                    }
+                        // === УДАЛЯЕМ ВСЁ СОДЕРЖИМОЕ ПО ЗАКЛАДКЕ ===
+                        Word.Bookmark bookmark = doc.Bookmarks[tableConfig.bookmark];
+                        var range = bookmark.Range;
+                        range.Text = ""; // ← Это удаляет исходную таблицу
 
-                    // Добавляем общее оборудование для "СИ и ИО"
-                    if (tableConfig.name == "СИ и ИО")
-                    {
-                        string anyTest = "";
-                        foreach (var kvp in testCheckboxes)
+                        // Группируем строки по testName
+                        var groups = new Dictionary<string, List<TableRow>>();
+                        foreach (var row in tableConfig.rows)
                         {
-                            if (kvp.Value.Checked)
+                            if (testCheckboxes.TryGetValue(row.testName, out CheckBox cb) && cb.Checked)
                             {
-                                anyTest = kvp.Key;
-                                break;
+                                if (!groups.ContainsKey(row.testName))
+                                    groups[row.testName] = new List<TableRow>();
+                                groups[row.testName].Add(row);
                             }
                         }
-                        foreach (var eq in commonEquipment)
-                        {
-                            rowsToInsert.Add(new TableRow { testName = anyTest, values = new List<string>(eq.values) });
-                        }
-                    }
 
-                    if (rowsToInsert.Count == 0)
+                        if (groups.Count == 0)
+                        {
+                            MessageBox.Show("Нет выбранных испытаний для результатов.", "Предупреждение", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            continue;
+                        }
+
+                        // Вставляем отдельную таблицу для каждой группы
+                        foreach (var group in groups)
+                        {
+                            var rowsInGroup = group.Value;
+
+                            // Создаём новую таблицу — БЕЗ ШАПКИ!
+                            Word.Table newTable = doc.Tables.Add(
+                                Range: range,
+                                NumRows: rowsInGroup.Count, // ← Без +1
+                                NumColumns: tableConfig.columns.Count
+                            );
+
+                            // Данные — начинаем с первой строки
+                            for (int i = 0; i < rowsInGroup.Count; i++)
+                            {
+                                var rowData = rowsInGroup[i];
+                                for (int c = 0; c < tableConfig.columns.Count; c++)
+                                {
+                                    string text = "";
+                                    if (c < rowData.values.Count)
+                                        text = rowData.values[c]; // ← Берём значение по индексу c
+
+                                    newTable.Cell(i + 1, c + 1).Range.Text = text;
+                                    newTable.Cell(i + 1, c + 1).Range.Font.Name = "Times New Roman";
+                                    newTable.Cell(i + 1, c + 1).Range.Font.Size = 13;
+                                    newTable.Cell(i + 1, c + 1).Range.Font.Color = Word.WdColor.wdColorBlack;
+                                    newTable.Cell(i + 1, c + 1).Shading.BackgroundPatternColor = Word.WdColor.wdColorWhite;
+                                }
+                            }
+
+                            newTable.Borders.Enable = 1;
+                            newTable.Borders.OutsideLineStyle = Word.WdLineStyle.wdLineStyleSingle;
+                            newTable.Borders.InsideLineStyle = Word.WdLineStyle.wdLineStyleSingle;
+                            newTable.Borders.OutsideColor = Word.WdColor.wdColorBlack;
+                            newTable.Borders.InsideColor = Word.WdColor.wdColorBlack;
+
+                            newTable.AutoFitBehavior(Word.WdAutoFitBehavior.wdAutoFitContent);
+
+
+                            // Отступ после таблицы
+                            range = newTable.Range;
+                            range.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
+                            range.Text = "\n";
+                            range.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
+                        }
+
+                        MessageBox.Show($"✅ Создано {groups.Count} таблиц(ы) для 'Результаты испытаний'.", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    else
                     {
-                        MessageBox.Show($"Нет выбранных испытаний для таблицы '{tableConfig.name}'.", "Предупреждение", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        continue;
-                    }
+                        // === СТАРАЯ ЛОГИКА ДЛЯ ОСТАЛЬНЫХ ТАБЛИЦ ===
+                        Word.Bookmark bookmark = doc.Bookmarks[tableConfig.bookmark];
+                        Word.Table existingTable = bookmark.Range.Tables[1];
+                        int insertRowIndex = bookmark.Range.Rows[1].Index;
 
-                    for (int i = 0; i < rowsToInsert.Count; i++)
-                    {
-                        int currentRow = insertRowIndex + i;
-
-                        if (currentRow > existingTable.Rows.Count)
+                        var rowsToInsert = new List<TableRow>();
+                        foreach (var row in tableConfig.rows)
                         {
-                            existingTable.Rows.Add();
+                            if (testCheckboxes.TryGetValue(row.testName, out CheckBox cb) && cb.Checked)
+                                rowsToInsert.Add(row);
                         }
 
-                        var rowData = rowsToInsert[i];
-                        for (int c = 0; c < tableConfig.columns.Count; c++)
+                        // Добавляем общее оборудование для "СИ и ИО"
+                        if (tableConfig.name == "СИ и ИО")
                         {
-                            string text = c < rowData.values.Count ? rowData.values[c] : "";
-                            existingTable.Cell(currentRow, c + 1).Range.Text = text;
-
-                            // ✅ Шрифт 13 для всех ячеек
-                            existingTable.Cell(currentRow, c + 1).Range.Font.Name = "Times New Roman";
-                            existingTable.Cell(currentRow, c + 1).Range.Font.Size = 13;
+                            string anyTest = "";
+                            foreach (var kvp in testCheckboxes)
+                            {
+                                if (kvp.Value.Checked)
+                                {
+                                    anyTest = kvp.Key;
+                                    break;
+                                }
+                            }
+                            foreach (var eq in commonEquipment)
+                            {
+                                rowsToInsert.Add(new TableRow { testName = anyTest, values = new List<string>(eq.values) });
+                            }
                         }
 
-                        // Нумерация
-                        existingTable.Cell(currentRow, 1).Range.Text = (i + 1).ToString();
-                    }
+                        if (rowsToInsert.Count == 0)
+                        {
+                            MessageBox.Show($"Нет выбранных испытаний для таблицы '{tableConfig.name}'.", "Предупреждение", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            continue;
+                        }
 
-                    MessageBox.Show($"✅ Данные успешно вставлены в таблицу '{tableConfig.name}'.", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        for (int i = 0; i < rowsToInsert.Count; i++)
+                        {
+                            int currentRow = insertRowIndex + i;
+
+                            if (currentRow > existingTable.Rows.Count)
+                            {
+                                existingTable.Rows.Add();
+                            }
+
+                            var rowData = rowsToInsert[i];
+                            for (int c = 0; c < tableConfig.columns.Count; c++)
+                            {
+                                string text = c < rowData.values.Count ? rowData.values[c] : "";
+                                existingTable.Cell(currentRow, c + 1).Range.Text = text;
+                                existingTable.Cell(currentRow, c + 1).Range.Font.Name = "Times New Roman";
+                                existingTable.Cell(currentRow, c + 1).Range.Font.Size = 13;
+                            }
+
+                            // Нумерация
+                            existingTable.Cell(currentRow, 1).Range.Text = (i + 1).ToString();
+                        }
+
+                        MessageBox.Show($"✅ Данные успешно вставлены в таблицу '{tableConfig.name}'.", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
                 }
                 catch (Exception ex)
                 {
