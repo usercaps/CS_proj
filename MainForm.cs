@@ -17,7 +17,7 @@ namespace TitleGen
         private TabPage tabParams, tabTableEditor;
         private Panel testsPanel, inputsPanel;
         private RadioButton radioTip, radioPeriod, radioTest;
-        private ComboBox cmbItemMode; // ← ComboBox для выбора количества изделий
+        private ComboBox cmbItemMode;
         private TextBox txtTemplate;
         private Button btnGenerate;
         private ComboBox cmbTables;
@@ -31,10 +31,31 @@ namespace TitleGen
         private string currentConfigPath;
         private TableConfig currentTable;
 
+        // Кэш для ускорения загрузки плейсхолдеров
+        private Dictionary<string, List<string>> placeholdersCache = new Dictionary<string, List<string>>();
+
         private List<TableRow> commonEquipment = new List<TableRow>
         {
             new TableRow { testName = "*", values = new List<string> { "", "Барометр-анероид", "М110", "126", "04.25 - 04.26" } },
             new TableRow { testName = "*", values = new List<string> { "", "Комбинированный прибор ", "Testo 625", "61064548/709", "05.25 - 05.26" } }
+        };
+
+        // Словарь для красивых названий полей
+        private static readonly Dictionary<string, string> FriendlyNames = new Dictionary<string, string>
+        {
+            { "Имя_изделия", "Имя изделия" },
+            { "Имя_изделия2", "Имя изделия 2" },
+            { "Номер_изделия", "Номер изделия" },
+            { "Номер_изделия2", "Номер изделия 2" },
+            { "Рег_Номер_изделия", "Рег. номер изделия" },
+            { "Рег_Номер_изделия2", "Рег. номер изделия 2" },
+            { "Дата_начала", "Дата начала испытаний" },
+            { "Дата_окончания", "Дата окончания испытаний" },
+            { "ТНПА", "ТНПА" },
+            { "Номер_протокола", "Номер протокола" },
+            { "Дата_протокола", "Дата протокола" },
+            { "Номер_приказа", "Номер приказа" },
+            { "Дата_приказа", "Дата приказа" }
         };
 
         public MainForm()
@@ -103,7 +124,6 @@ namespace TitleGen
             }
             page.Controls.Add(txtTemplate);
 
-            // ComboBox для выбора количества изделий
             var lblItemMode = new Label { Text = "Количество изделий:", Left = 280, Top = 90, AutoSize = true };
             cmbItemMode = new ComboBox
             {
@@ -118,10 +138,9 @@ namespace TitleGen
             page.Controls.Add(lblItemMode);
             page.Controls.Add(cmbItemMode);
 
-            // Обработчик для динамического показа/скрытия полей
             cmbItemMode.SelectedIndexChanged += (s, e) =>
             {
-                UpdateSpecialFieldsVisibility();
+                UpdateTemplatePath();
             };
 
             inputsPanel = new Panel
@@ -186,17 +205,32 @@ namespace TitleGen
 
         private void TemplateSelectorChanged(object sender, EventArgs e)
         {
-            string baseDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Templates");
-            if (radioTip.Checked)
-                txtTemplate.Text = Path.Combine(baseDir, "tipovye.docx");
-            else if (radioPeriod.Checked)
-                txtTemplate.Text = Path.Combine(baseDir, "periodich.docx");
+            UpdateTemplatePath();
+        }
 
-            if (File.Exists(txtTemplate.Text))
+        private void UpdateTemplatePath()
+        {
+            string templateBase;
+            if (radioTip.Checked)
+                templateBase = "tipovye";
+            else if (radioPeriod.Checked)
+                templateBase = "periodich";
+            else if (radioTest.Checked)
+                templateBase = "test";
+            else
+                return;
+
+            string suffix = (cmbItemMode.SelectedIndex == 1) ? "_2" : "_1";
+            string templateFileName = $"{templateBase}{suffix}.docx";
+            string baseDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Templates");
+            string fullPath = Path.Combine(baseDir, templateFileName);
+
+            txtTemplate.Text = fullPath;
+
+            if (File.Exists(fullPath))
             {
-                BuildDynamicForm(txtTemplate.Text);
-                LoadConfigForEditor(txtTemplate.Text);
-                UpdateSpecialFieldsVisibility(); // ← Обновляем видимость после загрузки
+                BuildDynamicForm(fullPath);
+                LoadConfigForEditor(fullPath);
             }
             else
             {
@@ -463,9 +497,19 @@ namespace TitleGen
 
             var placeholders = ExtractPlaceholders(templatePath);
             int y = 10;
+
+            bool isTwoItems = (cmbItemMode?.SelectedIndex == 1);
+
             foreach (var ph in placeholders)
             {
-                var lbl = new Label { Text = ph, Left = 10, Top = y + 3, Width = 200 };
+                if (!isTwoItems && (ph.Contains("_2") || ph.Contains("2")))
+                    continue;
+
+                string displayText = FriendlyNames.ContainsKey(ph)
+                    ? FriendlyNames[ph]
+                    : ph.Replace("_2", " 2");
+
+                var lbl = new Label { Text = displayText, Left = 10, Top = y + 3, Width = 200 };
                 var tb = new TextBox { Left = 220, Top = y, Width = 250 };
                 inputsPanel.Controls.Add(lbl);
                 inputsPanel.Controls.Add(tb);
@@ -474,8 +518,12 @@ namespace TitleGen
             }
         }
 
+        // === КЭШИРОВАНИЕ ПЛЕЙСХОЛДЕРОВ ===
         private List<string> ExtractPlaceholders(string path)
         {
+            if (placeholdersCache.TryGetValue(path, out List<string> cached))
+                return cached;
+
             var placeholders = new List<string>();
             Word.Application wordApp = null;
             Word.Document doc = null;
@@ -498,6 +546,8 @@ namespace TitleGen
                 if (wordApp != null) { wordApp.Quit(); Marshal.ReleaseComObject(wordApp); }
                 GC.Collect(); GC.WaitForPendingFinalizers();
             }
+
+            placeholdersCache[path] = placeholders;
             return placeholders;
         }
 
@@ -576,7 +626,10 @@ namespace TitleGen
                     {
                         Word.Bookmark bookmark = doc.Bookmarks[tableConfig.bookmark];
                         var range = bookmark.Range;
-                        range.Text = "";
+
+                        // Очищаем закладку, оставляя абзац
+                        range.Text = "\n";
+                        range.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
 
                         var groups = new Dictionary<string, List<TableRow>>();
                         foreach (var row in tableConfig.rows)
@@ -595,10 +648,10 @@ namespace TitleGen
                             continue;
                         }
 
+                        bool isTwoItems = (cmbItemMode?.SelectedIndex == 1);
+
                         foreach (var group in groups)
                         {
-                            bool isTwoItems = (cmbItemMode?.SelectedIndex == 1);
-
                             var rowsInGroup = new List<TableRow>();
                             foreach (var row in group.Value)
                             {
@@ -626,28 +679,43 @@ namespace TitleGen
                                 {
                                     string text = (c < rowData.values.Count) ? rowData.values[c] : "";
                                     newTable.Cell(i + 1, c + 1).Range.Text = text;
+
+                                    // Шрифт
                                     newTable.Cell(i + 1, c + 1).Range.Font.Name = "Times New Roman";
                                     newTable.Cell(i + 1, c + 1).Range.Font.Size = 13;
                                     newTable.Cell(i + 1, c + 1).Range.Font.Color = Word.WdColor.wdColorBlack;
                                     newTable.Cell(i + 1, c + 1).Shading.BackgroundPatternColor = Word.WdColor.wdColorWhite;
+
+                                    // Выравнивание
+                                    newTable.Cell(i + 1, c + 1).Range.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphLeft;
                                 }
                             }
 
+                            // Границы
                             newTable.Borders.Enable = 1;
                             newTable.Borders.OutsideLineStyle = Word.WdLineStyle.wdLineStyleSingle;
                             newTable.Borders.InsideLineStyle = Word.WdLineStyle.wdLineStyleSingle;
                             newTable.Borders.OutsideColor = Word.WdColor.wdColorBlack;
                             newTable.Borders.InsideColor = Word.WdColor.wdColorBlack;
 
-                            newTable.AutoFitBehavior(Word.WdAutoFitBehavior.wdAutoFitContent);
+                            // Фиксированные ширины для "Результаты испытаний"
+                            if (newTable.Columns.Count >= 7)
+                            {
+                                newTable.Columns[1].Width = 30;   // №
+                                newTable.Columns[2].Width = 200;  // Наименование объекта
+                                newTable.Columns[3].Width = 80;   // ТТЗ
+                                newTable.Columns[4].Width = 80;   // ПМ
+                                newTable.Columns[5].Width = 120;  // Нормированное значение
+                                newTable.Columns[6].Width = 120;  // Фактические значения
+                                newTable.Columns[7].Width = 80;   // Вывод
+                            }
 
+                            // Добавляем пробел после таблицы
                             range = newTable.Range;
                             range.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
                             range.Text = "\n";
                             range.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
                         }
-
-                        //MessageBox.Show($"✅ Создано {groups.Count} таблиц(ы) для 'Результаты испытаний'.", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                     else
                     {
@@ -703,38 +771,27 @@ namespace TitleGen
                             existingTable.Cell(currentRow, 1).Range.Text = (i + 1).ToString();
                         }
 
-                        //MessageBox.Show($"✅ Данные успешно вставлены в таблицу '{tableConfig.name}'.", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        // Настройка ширины для других таблиц
+                        if (tableConfig.name == "Программа испытаний" && existingTable.Columns.Count >= 4)
+                        {
+                            existingTable.Columns[1].Width = 30;
+                            existingTable.Columns[2].Width = 250;
+                            existingTable.Columns[3].Width = 150;
+                            existingTable.Columns[4].Width = 80;
+                        }
+                        else if (tableConfig.name == "СИ и ИО" && existingTable.Columns.Count >= 5)
+                        {
+                            existingTable.Columns[1].Width = 30;
+                            existingTable.Columns[2].Width = 200;
+                            existingTable.Columns[3].Width = 100;
+                            existingTable.Columns[4].Width = 80;
+                            existingTable.Columns[5].Width = 100;
+                        }
                     }
                 }
                 catch (Exception ex)
                 {
                     MessageBox.Show($"❌ Ошибка вставки данных в '{tableConfig.name}': {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-            }
-        }
-
-        // === МЕТОД ДЛЯ УПРАВЛЕНИЯ ВИДИМОСТЬЮ ПОЛЕЙ ===
-        private void UpdateSpecialFieldsVisibility()
-        {
-            bool isTwoItems = (cmbItemMode?.SelectedIndex == 1);
-
-            // Имена плейсхолдеров, которые должны появляться/исчезать
-            string[] specialFields = { "Имя_изделия2", "Номер_изделия2", "Рег_номер_изделия2" };
-
-            foreach (string field in specialFields)
-            {
-                if (inputs.TryGetValue(field, out TextBox tb))
-                {
-                    tb.Visible = isTwoItems;
-                    // Ищем и скрываем/показываем метку (Label)
-                    foreach (Control ctrl in inputsPanel.Controls)
-                    {
-                        if (ctrl is Label lbl && lbl.Text == field)
-                        {
-                            lbl.Visible = isTwoItems;
-                            break;
-                        }
-                    }
                 }
             }
         }
