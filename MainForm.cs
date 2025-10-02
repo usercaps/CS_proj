@@ -16,7 +16,7 @@ namespace TitleGen
         private TabControl tabControl;
         private TabPage tabParams, tabTableEditor;
         private Panel testsPanel, inputsPanel;
-        private RadioButton radioTip, radioPeriod, radioTest;
+        private RadioButton radioTip, radioPeriod;
         private ComboBox cmbItemMode;
         private TextBox txtTemplate;
         private Button btnGenerate;
@@ -114,10 +114,9 @@ namespace TitleGen
 
             radioTip = new RadioButton { Text = "Типовые", Left = 280, Top = 20, AutoSize = true };
             radioPeriod = new RadioButton { Text = "Периодические", Left = 380, Top = 20, AutoSize = true };
-            radioTest = new RadioButton { Text = "Тест", Left = 520, Top = 20, AutoSize = true };
             txtTemplate = new TextBox { Left = 280, Top = 60, Width = 500 };
 
-            foreach (var rb in new[] { radioTip, radioPeriod, radioTest })
+            foreach (var rb in new[] { radioTip, radioPeriod })
             {
                 rb.CheckedChanged += TemplateSelectorChanged;
                 page.Controls.Add(rb);
@@ -215,8 +214,6 @@ namespace TitleGen
                 templateBase = "tipovye";
             else if (radioPeriod.Checked)
                 templateBase = "periodich";
-            else if (radioTest.Checked)
-                templateBase = "test";
             else
                 return;
 
