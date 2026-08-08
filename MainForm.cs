@@ -20,6 +20,7 @@ namespace TitleGen
         private Panel testsPanel1, inputsPanel1;
         private RadioButton radioTip1, radioPeriod1;
         private ComboBox cmbItemMode1;
+
         private TextBox txtTemplate1;
         private Button btnGenerate1;
         private Dictionary<string, TextBox> inputs1 = new Dictionary<string, TextBox>();
@@ -118,7 +119,7 @@ namespace TitleGen
 
         private void BuildParamsTab(TabPage page, int pageNum)
         {
-            // 1. Панель с чекбоксами (только для Страницы 1 / "Основная")
+            // 1. Панель с чекбоксами (ТОЛЬКО для Страницы 1 / "Основная")
             Panel testsPanel = null;
             if (pageNum == 1)
             {
@@ -160,9 +161,9 @@ namespace TitleGen
                 }
             }
 
-            // 2. Расчет позиции X для центрирования на вкладке "Леша" (pageNum == 2)
-            // Ширина панели страницы примерно 870. Блок элементов будет шириной около 500.
-            // (870 - 500) / 2 ≈ 185. Для вкладки 1 оставляем как было (280).
+            // 2. Расчет позиции X для центрирования
+            // Для вкладки 2 ("Леша") центрируем блок шириной 500px: (870 - 500) / 2 = 185
+            // Для вкладки 1 оставляем 280 (как было)
             int startX = (pageNum == 2) ? 185 : 280;
 
             // 3. Радиокнопки (ТОЛЬКО для Страницы 1)
@@ -174,7 +175,8 @@ namespace TitleGen
                 radioTip = new RadioButton { Text = "Типовые", Left = startX, Top = 20, AutoSize = true };
                 radioPeriod = new RadioButton { Text = "Периодические", Left = startX + 100, Top = 20, AutoSize = true };
 
-                radioTip1 = radioTip; radioPeriod1 = radioPeriod;
+                radioTip1 = radioTip;
+                radioPeriod1 = radioPeriod;
 
                 foreach (var rb in new[] { radioTip, radioPeriod })
                 {
@@ -184,40 +186,55 @@ namespace TitleGen
             }
             else
             {
-                // Для страницы 2 создаем скрытые заглушки, чтобы код не падал при обращении, но не добавляем их на форму
+                // Для страницы 2 создаем заглушки, чтобы не было ошибок NullReference, но не показываем их
                 radioTip = new RadioButton();
                 radioPeriod = new RadioButton();
-                radioTip2 = radioTip; radioPeriod2 = radioPeriod;
-
-                // Сразу устанавливаем "Типовые" активными логически для пути, если нужно, или просто игнорируем
-                radioTip.Checked = true;
+                radioTip2 = radioTip;
+                radioPeriod2 = radioPeriod;
+                radioTip.Checked = true; // Логически считаем, что выбран типовой режим для пути
             }
 
-            // 4. Поле пути к шаблону (скрытое или видимое, но позиционируется по centerX)
+            // 4. Поле пути к шаблону (Скрытое для пользователя)
             TextBox txtTemplate = new TextBox { Left = startX, Top = 60, Width = 500 };
+
             if (pageNum == 2)
             {
-                // Для Леши жестко задаем путь
-                txtTemplate.Text = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Templates", "lesha.docx");
-                txtTemplate.ReadOnly = true; // Можно сделать readOnly, так как путь фиксирован
-                txtTemplate.Visible = false; // Скрываем, так как пользователю не нужно видеть путь
+                // Жесткий путь для Леши
+                string leshaPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Templates", "lesha.docx");
+                txtTemplate.Text = leshaPath;
+                txtTemplate.Visible = false; // Скрываем поле пути
             }
 
             if (pageNum == 1) txtTemplate1 = txtTemplate; else txtTemplate2 = txtTemplate;
             page.Controls.Add(txtTemplate);
 
             // 5. Выбор количества изделий
-            var lblItemMode = new Label { Text = "Количество изделий:", Left = startX, Top = 90, AutoSize = true };
+            Label lblItemMode = new Label { Text = "Количество изделий:", Left = startX, Top = 90, AutoSize = true };
+
             ComboBox cmbItemMode = new ComboBox
             {
-                Left = startX + 140, // Сдвиг относительно startX для центрировки внутри блока
+                Left = startX + 140,
                 Top = 88,
                 Width = 120,
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
-            cmbItemMode.Items.Add("1 изделие");
-            cmbItemMode.Items.Add("2 изделия");
-            cmbItemMode.SelectedIndex = 0;
+
+            if (pageNum == 2)
+            {
+                // ТОЛЬКО ДЛЯ ВТОРОЙ СТРАНИЦЫ: Список от 1 до 100
+                for (int i = 1; i <= 100; i++)
+                {
+                    cmbItemMode.Items.Add(i.ToString());
+                }
+                cmbItemMode.SelectedIndex = 0; // По умолчанию 1
+            }
+            else
+            {
+                // Для первой страницы оставляем старый формат (или тоже можно изменить при желании)
+                cmbItemMode.Items.Add("1 изделие");
+                cmbItemMode.Items.Add("2 изделия");
+                cmbItemMode.SelectedIndex = 0;
+            }
 
             if (pageNum == 1) cmbItemMode1 = cmbItemMode; else cmbItemMode2 = cmbItemMode;
 
@@ -235,7 +252,7 @@ namespace TitleGen
             {
                 Left = startX,
                 Top = 120,
-                Width = 500, // Фиксированная ширина для центрирования
+                Width = 500,
                 Height = 280,
                 AutoScroll = true,
                 BorderStyle = BorderStyle.FixedSingle
@@ -265,7 +282,7 @@ namespace TitleGen
 
             page.Controls.Add(btnGenerate);
 
-            // Инициализация первой страницы
+            // Инициализация
             if (pageNum == 1 && radioTip != null)
             {
                 radioTip.Checked = true;
@@ -273,7 +290,6 @@ namespace TitleGen
             }
             else if (pageNum == 2)
             {
-                // Для второй страницы сразу загружаем шаблон
                 UpdateTemplatePath(2);
             }
         }
