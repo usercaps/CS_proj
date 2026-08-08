@@ -70,7 +70,7 @@ namespace TitleGen
 
         public MainForm()
         {
-            Text = "Генерация протокола (2 страницы)";
+            Text = "Генерация протокола для НИИТЗИ";
             Width = 900;
             Height = 650;
             StartPosition = FormStartPosition.CenterScreen;
@@ -118,8 +118,14 @@ namespace TitleGen
 
         private void BuildParamsTab(TabPage page, int pageNum)
         {
-            // Создаем панель с чекбоксами ТОЛЬКО для первой страницы (Основная)
-            if (pageNum == 1)
+            bool isPage2 = (pageNum == 2);
+
+            // Центральная ось для второй страницы (ширина страницы ~870, центр ~435)
+            int centerX = 435;
+            int controlWidthOffset = 260; // Половина ширины широких элементов (500/2 + запас)
+
+            // --- ЧЕКБОКСЫ (ТОЛЬКО ДЛЯ СТРАНИЦЫ 1) ---
+            if (!isPage2)
             {
                 Panel testsPanel = new Panel
                 {
@@ -144,26 +150,22 @@ namespace TitleGen
                 {
                     var cb = new CheckBox { Text = test, Left = 10, Top = y, AutoSize = true };
                     testsPanel.Controls.Add(cb);
-                    testCheckboxes1[test] = cb; // Заполняем только словарь первой страницы
+                    testCheckboxes1[test] = cb; // Сохраняем только для страницы 1, так как на 2 их нет
                     cb.CheckedChanged += (s, ev) => UpdateRowStatuses(1);
                     y += 25;
                 }
-
-                testsPanel1 = testsPanel; // Сохраняем ссылку
             }
-            // Для pageNum == 2 (Леша) блок с чекбоксами полностью пропускается
 
-            // --- Общие элементы для обеих страниц (Радиокнопки, Шаблон, Инпуты) ---
+            // --- ЭЛЕМЕНТЫ УПРАВЛЕНИЯ ---
 
-            RadioButton radioTip = new RadioButton { Text = "Типовые", Left = 10, Top = 20, AutoSize = true };
-            RadioButton radioPeriod = new RadioButton { Text = "Периодические", Left = 110, Top = 20, AutoSize = true };
+            // Расчет позиции X: для стр 1 - фиксировано (280), для стр 2 - центрирование
+            int startX = isPage2 ? centerX - 250 : 280; // 250 - половина ширины блока элементов (500)
 
-            // Сдвигаем шаблон влево, так как слева нет панели тестов для 2-й страницы, 
-            // или оставляем как было, если хотите узкую колонку. 
-            // Для симметрии сделаем отступ 10 для обеих, но для 1-й он будет справа от чекбоксов.
-            int leftOffset = (pageNum == 1) ? 280 : 10;
+            RadioButton radioTip = new RadioButton { Text = "Типовые", Left = startX, Top = 20, AutoSize = true };
+            RadioButton radioPeriod = new RadioButton { Text = "Периодические", Left = startX + 100, Top = 20, AutoSize = true };
 
-            TextBox txtTemplate = new TextBox { Left = leftOffset, Top = 60, Width = 500 };
+            // TextBox шаблона центрируем относительно startX
+            TextBox txtTemplate = new TextBox { Left = startX, Top = 60, Width = 500 };
 
             if (pageNum == 1)
             {
@@ -190,10 +192,11 @@ namespace TitleGen
 
             page.Controls.Add(txtTemplate);
 
-            var lblItemMode = new Label { Text = "Количество изделий:", Left = leftOffset, Top = 90, AutoSize = true };
+            // Label и ComboBox
+            var lblItemMode = new Label { Text = "Количество изделий:", Left = startX, Top = 90, AutoSize = true };
             ComboBox cmbItemMode = new ComboBox
             {
-                Left = leftOffset + 140,
+                Left = startX + 140, // Сдвиг относительно начала блока
                 Top = 88,
                 Width = 120,
                 DropDownStyle = ComboBoxStyle.DropDownList
@@ -201,6 +204,7 @@ namespace TitleGen
             cmbItemMode.Items.Add("1 изделие");
             cmbItemMode.Items.Add("2 изделия");
             cmbItemMode.SelectedIndex = 0;
+
             page.Controls.Add(lblItemMode);
             page.Controls.Add(cmbItemMode);
 
@@ -212,9 +216,10 @@ namespace TitleGen
                 else UpdateTemplatePath(2);
             };
 
+            // Панель полей ввода
             Panel inputsPanel = new Panel
             {
-                Left = leftOffset,
+                Left = startX,
                 Top = 120,
                 Width = 500,
                 Height = 280,
@@ -224,10 +229,11 @@ namespace TitleGen
             page.Controls.Add(inputsPanel);
             if (pageNum == 1) inputsPanel1 = inputsPanel; else inputsPanel2 = inputsPanel;
 
+            // Кнопка генерации
             Button btnGenerate = new Button
             {
                 Text = "Сформировать Протокол",
-                Left = leftOffset,
+                Left = startX,
                 Top = 420,
                 Width = 200
             };
@@ -245,7 +251,6 @@ namespace TitleGen
 
             page.Controls.Add(btnGenerate);
         }
-
         private void BuildTableEditorTab(TabPage page)
         {
             var lblTable = new Label { Text = "Выберите таблицу (для активного шаблона):", Left = 20, Top = 20, AutoSize = true };
