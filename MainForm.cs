@@ -742,38 +742,79 @@ namespace TitleGen
             }
         }
 
-        private void DuplicateItemPages(Word.Document doc, int totalCount, Dictionary<string, TextBox> inputs)
+        /// <summary>
+        /// Дублирует содержимое между закладками ItemStart и ItemEnd нужное количество раз.
+        /// В каждой копии заменяет {{Номер_Изделия}} на актуальный номер.
+        /// </summary>
+        private void DuplicateItemPages(Word.Document doc, int totalCount, Dictionary<string, TextBox> baseInputs)
         {
+            // Проверяем наличие закладок
+            if (!doc.Bookmarks.Exists("ItemStart") || !doc.Bookmarks.Exists("ItemEnd"))
+                return;
+
             Word.Bookmark startBk = doc.Bookmarks["ItemStart"];
             Word.Bookmark endBk = doc.Bookmarks["ItemEnd"];
 
+            // Диапазон образца (включая текст между закладками)
             Word.Range sampleRange = doc.Range(startBk.Start, endBk.End);
-            Word.Range currentPos = doc.Range(endBk.End, endBk.End);
 
+            // Сохраняем длину образца, чтобы потом знать, сколько символов мы вставили
+            int sampleLength = sampleRange.Characters.Count;
+
+            // Позиция для вставки копий (сразу после оригинала)
+            Word.Range insertPos = doc.Range(endBk.End, endBk.End);
+
+            // Цикл создания копий со 2-й по N-ю
             for (int i = 2; i <= totalCount; i++)
             {
+                // Копируем образец
                 sampleRange.Copy();
-                currentPos.Paste();
 
-                Word.Range newBlock = doc.Range(currentPos.Start, currentPos.Start + sampleRange.Characters.Count);
+                // Вставляем после текущей позиции (стандартная вставка без лишних параметров восстановления)
+                insertPos.Paste();
 
-                // Замена номера изделия
-                Word.Find f = newBlock.Find;
-                f.Execute(FindText: "{{Номер_Изделия}}", ReplaceWith: i.ToString(), Replace: Word.WdReplace.wdReplaceAll);
-                // Можно добавить замену других уникальных полей если нужно
+                // Выделяем только что вставленный блок, чтобы заменить в нем номер
+                // Начало вставки известно (insertPos.Start), длина равна длине образца
+                Word.Range newBlock = doc.Range(insertPos.Start, insertPos.Start + sampleLength);
 
-                currentPos.Start = newBlock.End;
-                currentPos.End = newBlock.End;
+                // Заменяем плейсхолдер номера изделия в этом блоке
+                string placeholder = "{{Номер_Изделия}}";
+                string replacement = i.ToString();
+
+                Word.Find findObj = newBlock.Find;
+                findObj.Execute(
+                    FindText: placeholder,
+                    ReplaceWith: replacement,
+                    Replace: Word.WdReplace.wdReplaceAll
+                );
+
+                // Сдвигаем позицию вставки в конец нового блока
+                insertPos.Start = newBlock.End;
+                insertPos.End = newBlock.End;
             }
 
-            // Заполняем оригинал первым номером
-            Word.Range orig = doc.Range(startBk.Start, endBk.End);
-            Word.Find fOrig = orig.Find;
-            fOrig.Execute(FindText: "{{Номер_Изделия}}", ReplaceWith: "1", Replace: Word.WdReplace.wdReplaceAll);
+            // Теперь обрабатываем ОРИГИНАЛ (первый экземпляр), присваивая ему номер 1
+            Word.Range originalBlock = doc.Range(startBk.Start, endBk.End);
+            Word.Find origFind = originalBlock.Find;
+            origFind.Execute(
+                FindText: "{{Номер_Изделия}}",
+                ReplaceWith: "1",
+                Replace: Word.WdReplace.wdReplaceAll
+            );
 
-            // Удаляем закладки и оригинальный текст (так как копии уже созданы)
-            // Внимание: удаляем диапазон, который занимал оригинал
-            orig.Delete();
+            // Удаляем сами закладки (они больше не нужны, текст уже размножен)
+            // Важно: удаляем закладки, а не текст! 
+            // Если удалить диапазон originalBlock.Delete(), мы удалим первую страницу.
+            // Нам нужно удалить только метки закладок.
+
+            try
+            {
+                startBk.Delete(); // Удаляет только метку закладки, текст остается
+                                  // После удаления первой закладки, вторая может сдвинуться, но имя останется
+                if (doc.Bookmarks.Exists("ItemEnd"))
+                    doc.Bookmarks["ItemEnd"].Delete();
+            }
+            catch { /* Игнорируем ошибки удаления закладок, если они уже исчезли */ }
         }
     }
 }
