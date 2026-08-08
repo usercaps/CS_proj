@@ -118,14 +118,8 @@ namespace TitleGen
 
         private void BuildParamsTab(TabPage page, int pageNum)
         {
-            bool isPage2 = (pageNum == 2);
-
-            // Центральная ось для второй страницы (ширина страницы ~870, центр ~435)
-            int centerX = 435;
-            int controlWidthOffset = 260; // Половина ширины широких элементов (500/2 + запас)
-
-            // --- ЧЕКБОКСЫ (ТОЛЬКО ДЛЯ СТРАНИЦЫ 1) ---
-            if (!isPage2)
+            // 1. Создаем панель с чекбоксами ТОЛЬКО для первой страницы ("Основная")
+            if (pageNum == 1)
             {
                 Panel testsPanel = new Panel
                 {
@@ -150,54 +144,43 @@ namespace TitleGen
                 {
                     var cb = new CheckBox { Text = test, Left = 10, Top = y, AutoSize = true };
                     testsPanel.Controls.Add(cb);
-                    testCheckboxes1[test] = cb; // Сохраняем только для страницы 1, так как на 2 их нет
+                    testCheckboxes1[test] = cb; // Сохраняем только в словарь первой страницы
                     cb.CheckedChanged += (s, ev) => UpdateRowStatuses(1);
                     y += 25;
                 }
+                testsPanel1 = testsPanel;
             }
 
-            // --- ЭЛЕМЕНТЫ УПРАВЛЕНИЯ ---
+            // 2. Логика позиционирования
+            // Для стр. 1: startX = 280 (слева от чекбоксов)
+            // Для стр. 2: startX = (ClientWidth - BlockWidth) / 2 -> (870 - 500) / 2 = 185 (по центру)
+            int startX = (pageNum == 1) ? 280 : 185;
+            int topOffset = 20;
 
-            // Расчет позиции X: для стр 1 - фиксировано (280), для стр 2 - центрирование
-            int startX = isPage2 ? centerX - 250 : 280; // 250 - половина ширины блока элементов (500)
-
-            RadioButton radioTip = new RadioButton { Text = "Типовые", Left = startX, Top = 20, AutoSize = true };
-            RadioButton radioPeriod = new RadioButton { Text = "Периодические", Left = startX + 100, Top = 20, AutoSize = true };
-
-            // TextBox шаблона центрируем относительно startX
-            TextBox txtTemplate = new TextBox { Left = startX, Top = 60, Width = 500 };
-
+            // 3. Радиокнопки (ТОЛЬКО для стр. 1)
             if (pageNum == 1)
             {
-                radioTip1 = radioTip;
-                radioPeriod1 = radioPeriod;
-                txtTemplate1 = txtTemplate;
-            }
-            else
-            {
-                radioTip2 = radioTip;
-                radioPeriod2 = radioPeriod;
-                txtTemplate2 = txtTemplate;
-            }
+                radioTip1 = new RadioButton { Text = "Типовые", Left = startX, Top = topOffset, AutoSize = true };
+                radioPeriod1 = new RadioButton { Text = "Периодические", Left = startX + 100, Top = topOffset, AutoSize = true };
 
-            foreach (var rb in new[] { radioTip, radioPeriod })
-            {
-                if (pageNum == 1)
-                    rb.CheckedChanged += (s, e) => UpdateTemplatePath(1);
-                else
-                    rb.CheckedChanged += (s, e) => UpdateTemplatePath(2);
+                radioTip1.CheckedChanged += (s, e) => UpdateTemplatePath(1);
+                radioPeriod1.CheckedChanged += (s, e) => UpdateTemplatePath(1);
 
-                page.Controls.Add(rb);
+                page.Controls.Add(radioTip1);
+                page.Controls.Add(radioPeriod1);
             }
 
+            // 4. Поле шаблона (TextBox)
+            TextBox txtTemplate = new TextBox { Left = startX, Top = topOffset + 40, Width = 500 };
+            if (pageNum == 1) txtTemplate1 = txtTemplate; else txtTemplate2 = txtTemplate;
             page.Controls.Add(txtTemplate);
 
-            // Label и ComboBox
-            var lblItemMode = new Label { Text = "Количество изделий:", Left = startX, Top = 90, AutoSize = true };
+            // 5. Выпадающий список "Количество изделий"
+            var lblItemMode = new Label { Text = "Количество изделий:", Left = startX, Top = topOffset + 70, AutoSize = true };
             ComboBox cmbItemMode = new ComboBox
             {
-                Left = startX + 140, // Сдвиг относительно начала блока
-                Top = 88,
+                Left = startX + 140,
+                Top = topOffset + 68,
                 Width = 120,
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
@@ -205,36 +188,37 @@ namespace TitleGen
             cmbItemMode.Items.Add("2 изделия");
             cmbItemMode.SelectedIndex = 0;
 
+            if (pageNum == 1) cmbItemMode1 = cmbItemMode; else cmbItemMode2 = cmbItemMode;
+
             page.Controls.Add(lblItemMode);
             page.Controls.Add(cmbItemMode);
 
-            if (pageNum == 1) { cmbItemMode1 = cmbItemMode; } else { cmbItemMode2 = cmbItemMode; }
-
+            // Событие смены количества изделий
             cmbItemMode.SelectedIndexChanged += (s, e) =>
             {
                 if (pageNum == 1) UpdateTemplatePath(1);
                 else UpdateTemplatePath(2);
             };
 
-            // Панель полей ввода
+            // 6. Панель с полями ввода
             Panel inputsPanel = new Panel
             {
                 Left = startX,
-                Top = 120,
+                Top = topOffset + 100,
                 Width = 500,
                 Height = 280,
                 AutoScroll = true,
                 BorderStyle = BorderStyle.FixedSingle
             };
-            page.Controls.Add(inputsPanel);
             if (pageNum == 1) inputsPanel1 = inputsPanel; else inputsPanel2 = inputsPanel;
+            page.Controls.Add(inputsPanel);
 
-            // Кнопка генерации
+            // 7. Кнопка генерации
             Button btnGenerate = new Button
             {
                 Text = "Сформировать Протокол",
                 Left = startX,
-                Top = 420,
+                Top = 420, // Фиксированная высота кнопки
                 Width = 200
             };
 
@@ -245,11 +229,25 @@ namespace TitleGen
             }
             else
             {
-                btnGenerate.Click += (s, e) => btnGenerate_Click(2);
+                // Для второй страницы пока вешаем заглушку или отдельный метод, если шаблон готов
+                btnGenerate.Click += (s, e) => MessageBox.Show("Шаблон для 'Леши' пока не настроен.");
                 btnGenerate2 = btnGenerate;
             }
-
             page.Controls.Add(btnGenerate);
+
+            // Инициализация первой страницы
+            if (pageNum == 1 && radioTip1 != null)
+            {
+                radioTip1.Checked = true;
+                UpdateTemplatePath(1);
+            }
+            else if (pageNum == 2)
+            {
+                // Для второй страницы сразу задаем путь к будущему шаблону (заглушка)
+                txtTemplate.Text = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Templates", "lesha.docx");
+                // Можно раскомментировать ниже, когда будет шаблон:
+                // BuildDynamicForm(txtTemplate.Text, inputsPanel, pageNum == 1 ? inputs1 : inputs2);
+            }
         }
         private void BuildTableEditorTab(TabPage page)
         {
