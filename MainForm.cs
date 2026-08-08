@@ -118,10 +118,11 @@ namespace TitleGen
 
         private void BuildParamsTab(TabPage page, int pageNum)
         {
-            // 1. Создаем панель с чекбоксами ТОЛЬКО для первой страницы ("Основная")
+            // 1. Панель с чекбоксами (только для Страницы 1 / "Основная")
+            Panel testsPanel = null;
             if (pageNum == 1)
             {
-                Panel testsPanel = new Panel
+                testsPanel = new Panel
                 {
                     Left = 10,
                     Top = 10,
@@ -144,43 +145,73 @@ namespace TitleGen
                 {
                     var cb = new CheckBox { Text = test, Left = 10, Top = y, AutoSize = true };
                     testsPanel.Controls.Add(cb);
-                    testCheckboxes1[test] = cb; // Сохраняем только в словарь первой страницы
-                    cb.CheckedChanged += (s, ev) => UpdateRowStatuses(1);
+
+                    if (pageNum == 1)
+                    {
+                        cb.CheckedChanged += (s, ev) => UpdateRowStatuses(1);
+                        testCheckboxes1[test] = cb;
+                    }
+                    else
+                    {
+                        cb.CheckedChanged += (s, ev) => UpdateRowStatuses(2);
+                        testCheckboxes2[test] = cb;
+                    }
                     y += 25;
                 }
-                testsPanel1 = testsPanel;
             }
 
-            // 2. Логика позиционирования
-            // Для стр. 1: startX = 280 (слева от чекбоксов)
-            // Для стр. 2: startX = (ClientWidth - BlockWidth) / 2 -> (870 - 500) / 2 = 185 (по центру)
-            int startX = (pageNum == 1) ? 280 : 185;
-            int topOffset = 20;
+            // 2. Расчет позиции X для центрирования на вкладке "Леша" (pageNum == 2)
+            // Ширина панели страницы примерно 870. Блок элементов будет шириной около 500.
+            // (870 - 500) / 2 ≈ 185. Для вкладки 1 оставляем как было (280).
+            int startX = (pageNum == 2) ? 185 : 280;
 
-            // 3. Радиокнопки (ТОЛЬКО для стр. 1)
+            // 3. Радиокнопки (ТОЛЬКО для Страницы 1)
+            RadioButton radioTip = null;
+            RadioButton radioPeriod = null;
+
             if (pageNum == 1)
             {
-                radioTip1 = new RadioButton { Text = "Типовые", Left = startX, Top = topOffset, AutoSize = true };
-                radioPeriod1 = new RadioButton { Text = "Периодические", Left = startX + 100, Top = topOffset, AutoSize = true };
+                radioTip = new RadioButton { Text = "Типовые", Left = startX, Top = 20, AutoSize = true };
+                radioPeriod = new RadioButton { Text = "Периодические", Left = startX + 100, Top = 20, AutoSize = true };
 
-                radioTip1.CheckedChanged += (s, e) => UpdateTemplatePath(1);
-                radioPeriod1.CheckedChanged += (s, e) => UpdateTemplatePath(1);
+                radioTip1 = radioTip; radioPeriod1 = radioPeriod;
 
-                page.Controls.Add(radioTip1);
-                page.Controls.Add(radioPeriod1);
+                foreach (var rb in new[] { radioTip, radioPeriod })
+                {
+                    rb.CheckedChanged += (s, e) => UpdateTemplatePath(1);
+                    page.Controls.Add(rb);
+                }
+            }
+            else
+            {
+                // Для страницы 2 создаем скрытые заглушки, чтобы код не падал при обращении, но не добавляем их на форму
+                radioTip = new RadioButton();
+                radioPeriod = new RadioButton();
+                radioTip2 = radioTip; radioPeriod2 = radioPeriod;
+
+                // Сразу устанавливаем "Типовые" активными логически для пути, если нужно, или просто игнорируем
+                radioTip.Checked = true;
             }
 
-            // 4. Поле шаблона (TextBox)
-            TextBox txtTemplate = new TextBox { Left = startX, Top = topOffset + 40, Width = 500 };
+            // 4. Поле пути к шаблону (скрытое или видимое, но позиционируется по centerX)
+            TextBox txtTemplate = new TextBox { Left = startX, Top = 60, Width = 500 };
+            if (pageNum == 2)
+            {
+                // Для Леши жестко задаем путь
+                txtTemplate.Text = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Templates", "lesha.docx");
+                txtTemplate.ReadOnly = true; // Можно сделать readOnly, так как путь фиксирован
+                txtTemplate.Visible = false; // Скрываем, так как пользователю не нужно видеть путь
+            }
+
             if (pageNum == 1) txtTemplate1 = txtTemplate; else txtTemplate2 = txtTemplate;
             page.Controls.Add(txtTemplate);
 
-            // 5. Выпадающий список "Количество изделий"
-            var lblItemMode = new Label { Text = "Количество изделий:", Left = startX, Top = topOffset + 70, AutoSize = true };
+            // 5. Выбор количества изделий
+            var lblItemMode = new Label { Text = "Количество изделий:", Left = startX, Top = 90, AutoSize = true };
             ComboBox cmbItemMode = new ComboBox
             {
-                Left = startX + 140,
-                Top = topOffset + 68,
+                Left = startX + 140, // Сдвиг относительно startX для центрировки внутри блока
+                Top = 88,
                 Width = 120,
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
@@ -190,22 +221,21 @@ namespace TitleGen
 
             if (pageNum == 1) cmbItemMode1 = cmbItemMode; else cmbItemMode2 = cmbItemMode;
 
-            page.Controls.Add(lblItemMode);
-            page.Controls.Add(cmbItemMode);
-
-            // Событие смены количества изделий
             cmbItemMode.SelectedIndexChanged += (s, e) =>
             {
                 if (pageNum == 1) UpdateTemplatePath(1);
                 else UpdateTemplatePath(2);
             };
 
-            // 6. Панель с полями ввода
+            page.Controls.Add(lblItemMode);
+            page.Controls.Add(cmbItemMode);
+
+            // 6. Панель ввода данных (Inputs)
             Panel inputsPanel = new Panel
             {
                 Left = startX,
-                Top = topOffset + 100,
-                Width = 500,
+                Top = 120,
+                Width = 500, // Фиксированная ширина для центрирования
                 Height = 280,
                 AutoScroll = true,
                 BorderStyle = BorderStyle.FixedSingle
@@ -218,7 +248,7 @@ namespace TitleGen
             {
                 Text = "Сформировать Протокол",
                 Left = startX,
-                Top = 420, // Фиксированная высота кнопки
+                Top = 420,
                 Width = 200
             };
 
@@ -229,24 +259,22 @@ namespace TitleGen
             }
             else
             {
-                // Для второй страницы пока вешаем заглушку или отдельный метод, если шаблон готов
-                btnGenerate.Click += (s, e) => MessageBox.Show("Шаблон для 'Леши' пока не настроен.");
+                btnGenerate.Click += (s, e) => btnGenerate_Click(2);
                 btnGenerate2 = btnGenerate;
             }
+
             page.Controls.Add(btnGenerate);
 
             // Инициализация первой страницы
-            if (pageNum == 1 && radioTip1 != null)
+            if (pageNum == 1 && radioTip != null)
             {
-                radioTip1.Checked = true;
+                radioTip.Checked = true;
                 UpdateTemplatePath(1);
             }
             else if (pageNum == 2)
             {
-                // Для второй страницы сразу задаем путь к будущему шаблону (заглушка)
-                txtTemplate.Text = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Templates", "lesha.docx");
-                // Можно раскомментировать ниже, когда будет шаблон:
-                // BuildDynamicForm(txtTemplate.Text, inputsPanel, pageNum == 1 ? inputs1 : inputs2);
+                // Для второй страницы сразу загружаем шаблон
+                UpdateTemplatePath(2);
             }
         }
         private void BuildTableEditorTab(TabPage page)
