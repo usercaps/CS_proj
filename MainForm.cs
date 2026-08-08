@@ -118,51 +118,53 @@ namespace TitleGen
 
         private void BuildParamsTab(TabPage page, int pageNum)
         {
-            Panel testsPanel = new Panel
+            // Создаем панель с чекбоксами ТОЛЬКО для первой страницы (Основная)
+            if (pageNum == 1)
             {
-                Left = 10,
-                Top = 10,
-                Width = 250,
-                Height = 450,
-                BorderStyle = BorderStyle.FixedSingle,
-                AutoScroll = true
-            };
-            page.Controls.Add(testsPanel);
-
-            string[] tests = {
-                "Повышенная температура", "Пониженная температура", "Циклы температуры",
-                "Давление рабочее", "Давление предельное",
-                "Повышенная влажность", "Пониженная влажность",
-                "Вибрация", "Удары", "Соляной туман", "Безопасность"
-            };
-
-            int y = 10;
-            var localChecks = new Dictionary<string, CheckBox>();
-
-            foreach (var test in tests)
-            {
-                var cb = new CheckBox { Text = test, Left = 10, Top = y, AutoSize = true };
-                testsPanel.Controls.Add(cb);
-                localChecks[test] = cb;
-
-                if (pageNum == 1)
+                Panel testsPanel = new Panel
                 {
+                    Left = 10,
+                    Top = 10,
+                    Width = 250,
+                    Height = 450,
+                    BorderStyle = BorderStyle.FixedSingle,
+                    AutoScroll = true
+                };
+                page.Controls.Add(testsPanel);
+
+                string[] tests = {
+            "Повышенная температура", "Пониженная температура", "Циклы температуры",
+            "Давление рабочее", "Давление предельное",
+            "Повышенная влажность", "Пониженная влажность",
+            "Вибрация", "Удары", "Соляной туман", "Безопасность"
+        };
+
+                int y = 10;
+                foreach (var test in tests)
+                {
+                    var cb = new CheckBox { Text = test, Left = 10, Top = y, AutoSize = true };
+                    testsPanel.Controls.Add(cb);
+                    testCheckboxes1[test] = cb; // Заполняем только словарь первой страницы
                     cb.CheckedChanged += (s, ev) => UpdateRowStatuses(1);
-                    testCheckboxes1[test] = cb;
+                    y += 25;
                 }
-                else
-                {
-                    cb.CheckedChanged += (s, ev) => UpdateRowStatuses(2);
-                    testCheckboxes2[test] = cb;
-                }
-                y += 25;
+
+                testsPanel1 = testsPanel; // Сохраняем ссылку
             }
+            // Для pageNum == 2 (Леша) блок с чекбоксами полностью пропускается
 
-            RadioButton radioTip = new RadioButton { Text = "Типовые", Left = 280, Top = 20, AutoSize = true };
-            RadioButton radioPeriod = new RadioButton { Text = "Периодические", Left = 380, Top = 20, AutoSize = true };
-            TextBox txtTemplate = new TextBox { Left = 280, Top = 60, Width = 500 };
+            // --- Общие элементы для обеих страниц (Радиокнопки, Шаблон, Инпуты) ---
 
-            // Сохраняем ссылки ПЕРЕД добавлением событий, чтобы избежать путаницы
+            RadioButton radioTip = new RadioButton { Text = "Типовые", Left = 10, Top = 20, AutoSize = true };
+            RadioButton radioPeriod = new RadioButton { Text = "Периодические", Left = 110, Top = 20, AutoSize = true };
+
+            // Сдвигаем шаблон влево, так как слева нет панели тестов для 2-й страницы, 
+            // или оставляем как было, если хотите узкую колонку. 
+            // Для симметрии сделаем отступ 10 для обеих, но для 1-й он будет справа от чекбоксов.
+            int leftOffset = (pageNum == 1) ? 280 : 10;
+
+            TextBox txtTemplate = new TextBox { Left = leftOffset, Top = 60, Width = 500 };
+
             if (pageNum == 1)
             {
                 radioTip1 = radioTip;
@@ -188,10 +190,10 @@ namespace TitleGen
 
             page.Controls.Add(txtTemplate);
 
-            var lblItemMode = new Label { Text = "Количество изделий:", Left = 280, Top = 90, AutoSize = true };
+            var lblItemMode = new Label { Text = "Количество изделий:", Left = leftOffset, Top = 90, AutoSize = true };
             ComboBox cmbItemMode = new ComboBox
             {
-                Left = 420,
+                Left = leftOffset + 140,
                 Top = 88,
                 Width = 120,
                 DropDownStyle = ComboBoxStyle.DropDownList
@@ -212,7 +214,7 @@ namespace TitleGen
 
             Panel inputsPanel = new Panel
             {
-                Left = 280,
+                Left = leftOffset,
                 Top = 120,
                 Width = 500,
                 Height = 280,
@@ -225,7 +227,7 @@ namespace TitleGen
             Button btnGenerate = new Button
             {
                 Text = "Сформировать Протокол",
-                Left = 280,
+                Left = leftOffset,
                 Top = 420,
                 Width = 200
             };
