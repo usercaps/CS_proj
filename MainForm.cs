@@ -16,18 +16,18 @@ namespace TitleGen
         private TabControl tabControl;
         private TabPage tabParams1, tabParams2, tabTableEditor;
 
-        // Элементы Страницы 1
+        // Элементы Страницы 1 (Основная)
         private Panel testsPanel1, inputsPanel1;
         private RadioButton radioTip1, radioPeriod1;
         private ComboBox cmbItemMode1;
-
         private TextBox txtTemplate1;
         private Button btnGenerate1;
         private Dictionary<string, TextBox> inputs1 = new Dictionary<string, TextBox>();
         private Dictionary<string, CheckBox> testCheckboxes1 = new Dictionary<string, CheckBox>();
 
-        // Элементы Страницы 2
+        // Элементы Страницы 2 (Леша)
         private Panel testsPanel2, inputsPanel2;
+        // Эти переменные нужны для логики, даже если кнопок нет на экране
         private RadioButton radioTip2, radioPeriod2;
         private ComboBox cmbItemMode2;
         private TextBox txtTemplate2;
@@ -35,7 +35,7 @@ namespace TitleGen
         private Dictionary<string, TextBox> inputs2 = new Dictionary<string, TextBox>();
         private Dictionary<string, CheckBox> testCheckboxes2 = new Dictionary<string, CheckBox>();
 
-        // Общие элементы (инициализируются при создании вкладки)
+        // Общие элементы
         private ComboBox cmbTables;
         private DataGridView dgvRows;
         private Button btnAddRow, btnDeleteRow, btnSaveConfig;
@@ -66,25 +66,25 @@ namespace TitleGen
             { "Номер_протокола", "Номер протокола" },
             { "Дата_протокола", "Дата протокола" },
             { "Номер_приказа", "Номер приказа" },
-            { "Дата_приказа", "Дата приказа" }
+            { "Дата_приказа", "Дата приказа" },
+            { "Номер_Изделия", "Номер изделия" } // Для дублирования
         };
 
         public MainForm()
         {
-            Text = "Генерация протокола для НИИТЗИ";
+            Text = "Генерация протокола";
             Width = 900;
             Height = 650;
             StartPosition = FormStartPosition.CenterScreen;
             AutoScroll = true;
 
-            // Инициализация UI
             BuildStaticUI();
         }
 
         private void BuildStaticUI()
         {
             tabControl = new TabControl { Left = 10, Top = 10, Width = 870, Height = 600 };
-            tabControl.SelectedIndexChanged += TabControl_SelectedIndexChanged; // Важное событие!
+            tabControl.SelectedIndexChanged += TabControl_SelectedIndexChanged;
 
             tabParams1 = new TabPage { Text = "Основная" };
             tabParams2 = new TabPage { Text = "Леша" };
@@ -99,19 +99,15 @@ namespace TitleGen
             tabControl.TabPages.Add(tabTableEditor);
             Controls.Add(tabControl);
 
-            // Инициализация первой страницы по умолчанию
+            // Инициализация первой страницы
             if (radioTip1 != null) radioTip1.Checked = true;
             UpdateTemplatePath(1);
         }
 
-        // Обработчик переключения вкладок: загружаем список таблиц только когда открыли редактор
         private void TabControl_SelectedIndexChanged(object sender, EventArgs e)
         {
             if (tabControl.SelectedTab == tabTableEditor)
             {
-                // Определяем, какая страница активна была последней или просто берем текущий конфиг
-                // Если нужно редактировать конфиг для шаблона Страницы 1 или 2, можно добавить логику выбора
-                // Сейчас просто обновляем список на основе текущего загруженного конфига
                 PopulateTableDropdown();
                 BindTableToGrid();
             }
@@ -119,11 +115,10 @@ namespace TitleGen
 
         private void BuildParamsTab(TabPage page, int pageNum)
         {
-            // 1. Панель с чекбоксами (ТОЛЬКО для Страницы 1 / "Основная")
-            Panel testsPanel = null;
+            // 1. Панель с чекбоксами (ТОЛЬКО для Страницы 1)
             if (pageNum == 1)
             {
-                testsPanel = new Panel
+                Panel testsPanel = new Panel
                 {
                     Left = 10,
                     Top = 10,
@@ -133,68 +128,60 @@ namespace TitleGen
                     AutoScroll = true
                 };
                 page.Controls.Add(testsPanel);
+                testsPanel1 = testsPanel;
 
                 string[] tests = {
-            "Повышенная температура", "Пониженная температура", "Циклы температуры",
-            "Давление рабочее", "Давление предельное",
-            "Повышенная влажность", "Пониженная влажность",
-            "Вибрация", "Удары", "Соляной туман", "Безопасность"
-        };
+                    "Повышенная температура", "Пониженная температура", "Циклы температуры",
+                    "Давление рабочее", "Давление предельное",
+                    "Повышенная влажность", "Пониженная влажность",
+                    "Вибрация", "Удары", "Соляной туман", "Безопасность"
+                };
 
                 int y = 10;
                 foreach (var test in tests)
                 {
                     var cb = new CheckBox { Text = test, Left = 10, Top = y, AutoSize = true };
                     testsPanel.Controls.Add(cb);
-
-                    if (pageNum == 1)
-                    {
-                        cb.CheckedChanged += (s, ev) => UpdateRowStatuses(1);
-                        testCheckboxes1[test] = cb;
-                    }
-                    else
-                    {
-                        cb.CheckedChanged += (s, ev) => UpdateRowStatuses(2);
-                        testCheckboxes2[test] = cb;
-                    }
+                    cb.CheckedChanged += (s, ev) => UpdateRowStatuses(1);
+                    testCheckboxes1[test] = cb;
                     y += 25;
-                }
-            }
-
-            // 2. Расчет позиции X для центрирования
-            // Для вкладки 2 ("Леша") центрируем блок шириной 500px: (870 - 500) / 2 = 185
-            // Для вкладки 1 оставляем 280 (как было)
-            int startX = (pageNum == 2) ? 185 : 280;
-
-            // 3. Радиокнопки (ТОЛЬКО для Страницы 1)
-            RadioButton radioTip = null;
-            RadioButton radioPeriod = null;
-
-            if (pageNum == 1)
-            {
-                radioTip = new RadioButton { Text = "Типовые", Left = startX, Top = 20, AutoSize = true };
-                radioPeriod = new RadioButton { Text = "Периодические", Left = startX + 100, Top = 20, AutoSize = true };
-
-                radioTip1 = radioTip;
-                radioPeriod1 = radioPeriod;
-
-                foreach (var rb in new[] { radioTip, radioPeriod })
-                {
-                    rb.CheckedChanged += (s, e) => UpdateTemplatePath(1);
-                    page.Controls.Add(rb);
                 }
             }
             else
             {
-                // Для страницы 2 создаем заглушки, чтобы не было ошибок NullReference, но не показываем их
-                radioTip = new RadioButton();
-                radioPeriod = new RadioButton();
-                radioTip2 = radioTip;
-                radioPeriod2 = radioPeriod;
-                radioTip.Checked = true; // Логически считаем, что выбран типовой режим для пути
+                // Для страницы 2 создаем пустую панель, чтобы переменная не была null, но не добавляем на форму
+                testsPanel2 = new Panel();
             }
 
-            // 4. Поле пути к шаблону (Скрытое для пользователя)
+            // 2. Расчет позиции X для центрирования на вкладке "Леша"
+            int startX = (pageNum == 2) ? 185 : 280;
+
+            // 3. Радиокнопки (ТОЛЬКО для Страницы 1)
+            if (pageNum == 1)
+            {
+                radioTip1 = new RadioButton { Text = "Типовые", Left = startX, Top = 20, AutoSize = true };
+                radioPeriod1 = new RadioButton { Text = "Периодические", Left = startX + 100, Top = 20, AutoSize = true };
+
+                foreach (var rb in new[] { radioTip1, radioPeriod1 })
+                {
+                    rb.CheckedChanged += (s, e) => UpdateTemplatePath(1);
+                    page.Controls.Add(rb);
+                }
+
+                // Заглушки для страницы 2, чтобы не было ошибок компиляции
+                radioTip2 = new RadioButton();
+                radioPeriod2 = new RadioButton();
+                radioTip2.Checked = true; // Логически выбираем "Типовые" для пути
+            }
+            else
+            {
+                // Инициализация переменных для страницы 2 (визуально их нет)
+                radioTip2 = new RadioButton();
+                radioPeriod2 = new RadioButton();
+                radioTip2.Checked = true; // По умолчанию считаем, что шаблон tipovye
+            }
+
+            // 4. Поле пути к шаблону
             TextBox txtTemplate = new TextBox { Left = startX, Top = 60, Width = 500 };
 
             if (pageNum == 2)
@@ -202,6 +189,7 @@ namespace TitleGen
                 // Жесткий путь для Леши
                 string leshaPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Templates", "lesha.docx");
                 txtTemplate.Text = leshaPath;
+                txtTemplate.ReadOnly = true;
                 txtTemplate.Visible = false; // Скрываем поле пути
             }
 
@@ -209,7 +197,7 @@ namespace TitleGen
             page.Controls.Add(txtTemplate);
 
             // 5. Выбор количества изделий
-            Label lblItemMode = new Label { Text = "Количество изделий:", Left = startX, Top = 90, AutoSize = true };
+            var lblItemMode = new Label { Text = "Количество изделий:", Left = startX, Top = 90, AutoSize = true };
 
             ComboBox cmbItemMode = new ComboBox
             {
@@ -219,21 +207,21 @@ namespace TitleGen
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
 
-            if (pageNum == 2)
+            if (pageNum == 1)
             {
-                // ТОЛЬКО ДЛЯ ВТОРОЙ СТРАНИЦЫ: Список от 1 до 100
-                for (int i = 1; i <= 100; i++)
-                {
-                    cmbItemMode.Items.Add(i.ToString());
-                }
-                cmbItemMode.SelectedIndex = 0; // По умолчанию 1
-            }
-            else
-            {
-                // Для первой страницы оставляем старый формат (или тоже можно изменить при желании)
+                // Страница 1: 1 или 2 изделия (как было раньше, или можно тоже расширить)
                 cmbItemMode.Items.Add("1 изделие");
                 cmbItemMode.Items.Add("2 изделия");
                 cmbItemMode.SelectedIndex = 0;
+            }
+            else
+            {
+                // Страница 2 (Леша): от 1 до 100
+                for (int i = 1; i <= 100; i++)
+                {
+                    cmbItemMode.Items.Add($"{i} изд.");
+                }
+                cmbItemMode.SelectedIndex = 0; // По умолчанию 1
             }
 
             if (pageNum == 1) cmbItemMode1 = cmbItemMode; else cmbItemMode2 = cmbItemMode;
@@ -247,7 +235,7 @@ namespace TitleGen
             page.Controls.Add(lblItemMode);
             page.Controls.Add(cmbItemMode);
 
-            // 6. Панель ввода данных (Inputs)
+            // 6. Панель ввода данных
             Panel inputsPanel = new Panel
             {
                 Left = startX,
@@ -282,10 +270,10 @@ namespace TitleGen
 
             page.Controls.Add(btnGenerate);
 
-            // Инициализация
-            if (pageNum == 1 && radioTip != null)
+            // Старт
+            if (pageNum == 1 && radioTip1 != null)
             {
-                radioTip.Checked = true;
+                radioTip1.Checked = true;
                 UpdateTemplatePath(1);
             }
             else if (pageNum == 2)
@@ -293,11 +281,10 @@ namespace TitleGen
                 UpdateTemplatePath(2);
             }
         }
+
         private void BuildTableEditorTab(TabPage page)
         {
-            var lblTable = new Label { Text = "Выберите таблицу (для активного шаблона):", Left = 20, Top = 20, AutoSize = true };
-
-            // Инициализируем cmbTables здесь, где она точно нужна
+            var lblTable = new Label { Text = "Выберите таблицу:", Left = 20, Top = 20, AutoSize = true };
             cmbTables = new ComboBox
             {
                 Left = 200,
@@ -306,7 +293,6 @@ namespace TitleGen
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
             cmbTables.SelectedIndexChanged += cmbTables_SelectedIndexChanged;
-
             page.Controls.Add(lblTable);
             page.Controls.Add(cmbTables);
 
@@ -343,45 +329,59 @@ namespace TitleGen
             Panel inputsPanel = (pageNum == 1) ? inputsPanel1 : inputsPanel2;
             var inputs = (pageNum == 1) ? inputs1 : inputs2;
 
-            if (radioTip == null || txtTemplate == null) return;
+            if (txtTemplate == null) return;
 
-            string templateBase;
-            if (radioTip.Checked)
-                templateBase = "tipovye";
-            else if (radioPeriod.Checked)
-                templateBase = "periodich";
+            string fullPath = "";
+
+            if (pageNum == 2)
+            {
+                // Для Леши всегда один шаблон
+                fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Templates", "lesha.docx");
+            }
             else
-                return;
+            {
+                // Для Основной страницы логика выбора
+                string templateBase = radioTip.Checked ? "tipovye" : "periodich";
 
-            string suffix = (cmbItemMode?.SelectedIndex == 1) ? "_2" : "_1";
-            string templateFileName = $"{templateBase}{suffix}.docx";
-            string baseDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Templates");
-            string fullPath = Path.Combine(baseDir, templateFileName);
+                // Определяем суффикс количества
+                string suffix = "_1";
+                if (cmbItemMode != null && cmbItemMode.SelectedItem != null)
+                {
+                    string text = cmbItemMode.SelectedItem.ToString();
+                    if (text.Contains("2")) suffix = "_2";
+                    // Если вдруг на основной тоже будет список до 100, логика усложнится, 
+                    // но пока там только 1 и 2.
+                }
+
+                string fileName = $"{templateBase}{suffix}.docx";
+                fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Templates", fileName);
+            }
 
             txtTemplate.Text = fullPath;
 
             if (File.Exists(fullPath))
             {
                 BuildDynamicForm(fullPath, inputsPanel, inputs);
-                // Загружаем конфиг в память, но НЕ заполняем cmbTables пока не откроют вкладку
                 LoadConfigForEditor(fullPath);
             }
             else
             {
-                inputsPanel.Controls.Clear();
-                inputs.Clear();
-                currentConfig = null; // Сброс конфига если файл не найден
+                if (inputsPanel != null) inputsPanel.Controls.Clear();
+                if (inputs != null) inputs.Clear();
+                if (pageNum == 1) currentConfig = null;
             }
         }
 
         private void LoadConfigForEditor(string templatePath)
         {
+            if (string.IsNullOrEmpty(templatePath)) return;
             string configPath = Path.Combine(Path.GetDirectoryName(templatePath), "config.json");
             if (!File.Exists(configPath))
             {
                 currentConfig = CreateDefaultConfig();
                 currentConfigPath = configPath;
-                File.WriteAllText(configPath, JsonConvert.SerializeObject(currentConfig, Formatting.Indented));
+                // Создаем конфиг только если его нет, но не пугаем пользователя на каждой загрузке
+                if (!File.Exists(configPath)) File.WriteAllText(configPath, JsonConvert.SerializeObject(currentConfig, Formatting.Indented));
             }
             else
             {
@@ -396,7 +396,6 @@ namespace TitleGen
                     currentConfigPath = configPath;
                 }
             }
-            // cmbTables заполнится позже, при переключении вкладки
         }
 
         private TemplateConfig CreateDefaultConfig()
@@ -409,68 +408,25 @@ namespace TitleGen
                     {
                         name = "Программа испытаний",
                         bookmark = "Table_Program",
-                        columns = new List<string>
-                        {
-                            "№",
-                            "Наименование объекта испытаний (показателей, характеристик)",
-                            "Наименование ТНПА, устанавливающего метод испытаний",
-                            "Примечание"
-                        },
+                        columns = new List<string> { "№", "Наименование объекта испытаний", "ТНПА", "Примечание" },
                         rows = new List<TableRow>
                         {
-                            new TableRow { testName = "Повышенная температура", values = new List<string> { "1", "Проверка требований к воздействию повышенной рабочей и повышенной предельной температуры", "4.7.1", "" } },
-                            new TableRow { testName = "Пониженная температура", values = new List<string> { "2", "Проверка требований к воздействию пониженной рабочей и пониженной предельной температуры", "4.7.2", "" } },
-                            new TableRow { testName = "Циклы температуры", values = new List<string> { "3", "Проверка требований к изменению температуры окружающей среды", "4.7.9", "" } },
-                            new TableRow { testName = "Давление рабочее", values = new List<string> { "", "Проверка требований к воздействию пониженного рабочего, предельного атмосферного давления", "4.7.3, 4.7.4", "" } },
-                            new TableRow { testName = "Удары", values = new List<string> { "", "Проверка устойчивости и прочности при воздействии ударных нагрузок", "4.7.11, а), 4.7.11, б), 4.7.12", "" } }
+                            new TableRow { testName = "Повышенная температура", values = new List<string> { "1", "Проверка требований", "4.7.1", "" } }
                         }
                     },
                     new TableConfig
                     {
                         name = "СИ и ИО",
                         bookmark = "Table_Equipment",
-                        columns = new List<string>
-                        {
-                            "№",
-                            "Наименование испытательного оборудования и средств измерений",
-                            "Тип, марка",
-                            "Номер",
-                            "Период аттестации, калибровки"
-                        },
-                        rows = new List<TableRow>
-                        {
-                            new TableRow { testName = "Вибрация", values = new List<string> { "", "Вибростенд LDS V408", "VS-408-001", "2025-11-30", "" } },
-                            new TableRow { testName = "Повышенная температура", values = new List<string> { "", "Камера тепла и холода", "МС-71", "906569", "08.24 - 08.25" } },
-                            new TableRow { testName = "Пониженная температура", values = new List<string> { "", "Камера тепла и холода", "МС-71", "906569", "08.24 - 08.25" } },
-                            new TableRow { testName = "Циклы температуры", values = new List<string> { "", "Камера тепла и холода", "МС-71", "906569", "08.24 - 08.25" } },
-                            new TableRow { testName = "Удары", values = new List<string> { "", "Ударная установка", "STT500", "2/79", "10.24 - 10.25" } },
-                            new TableRow { testName = "Давление рабочее", values = new List<string> { "", "Термобарокамера", "TBV-2000", "308934", "08.24 - 08.25" } },
-                            new TableRow { testName = "Давление предельное", values = new List<string> { "", "Термобарокамера", "TBV-2000", "308934", "08.24 - 08.25" } }
-                        }
+                        columns = new List<string> { "№", "Наименование", "Тип", "Номер", "Период" },
+                        rows = new List<TableRow>()
                     },
                     new TableConfig
                     {
                         name = "Результаты испытаний",
                         bookmark = "Table_Results",
-                        columns = new List<string>
-                        {
-                            "№",
-                            "Наименование объекта испытаний (показателей, характеристик)",
-                            "ТТЗ (требования)",
-                            "ПМ (методы)",
-                            "Нормированное значение показателей, установленных в ТНПА",
-                            "Фактические значения показателей",
-                            "Вывод о соответствии требованиям ТНПА"
-                        },
-                        rows = new List<TableRow>
-                        {
-                            new TableRow { testName = "Повышенная температура", values = new List<string> { "1", "Проверка воздействия повышенной температуры", "4.7.1", "ГОСТ Р 57200-2016", "от -60 до +85°C", "+85°C", "Соответствует" } },
-                            new TableRow { testName = "Пониженная температура", values = new List<string> { "2", "Проверка воздействия пониженной температуры", "4.7.2", "ГОСТ Р 57200-2016", "от -60 до +85°C", "-60°C", "Соответствует" } },
-                            new TableRow { testName = "Циклы температуры", values = new List<string> { "3", "Проверка циклов температуры", "4.7.9", "ГОСТ Р 57200-2016", "10 циклов", "10 циклов", "Соответствует" } },
-                            new TableRow { testName = "Давление рабочее", values = new List<string> { "", "Проверка давления", "4.7.3", "ГОСТ Р 57200-2016", "760 мм рт.ст.", "755 мм рт.ст.", "Соответствует" } },
-                            new TableRow { testName = "Давление предельное", values = new List<string> { "", "Проверка предельного давления", "4.7.4", "ГОСТ Р 57200-2016", "400 мм рт.ст.", "410 мм рт.ст.", "Соответствует" } },
-                            new TableRow { testName = "Удары", values = new List<string> { "", "Проверка ударов", "4.7.11", "ГОСТ Р 57200-2016", "9g, 6 мс", "9g, 6 мс", "Соответствует" } }
-                        }
+                        columns = new List<string> { "№", "Наименование", "ТТЗ", "ПМ", "Норма", "Факт", "Вывод" },
+                        rows = new List<TableRow>()
                     }
                 }
             };
@@ -478,7 +434,7 @@ namespace TitleGen
 
         private void PopulateTableDropdown()
         {
-            if (cmbTables == null) return; // Защита от NullReferenceException
+            if (cmbTables == null) return;
             cmbTables.Items.Clear();
             if (currentConfig?.tables == null) return;
             foreach (var table in currentConfig.tables)
@@ -497,22 +453,16 @@ namespace TitleGen
         private void BindTableToGrid()
         {
             if (dgvRows == null || currentTable == null) return;
-
-            // Определяем активные чекбоксы в зависимости от текущей вкладки (предполагаем, что редактируем то, что было активно последним, или дефолт 1)
-            // Для простоты берем чекбоксы Страницы 1, так как конфиг часто общий, но можно усложнить логику
-            var activeChecks = testCheckboxes1;
+            var activeChecks = testCheckboxes1; // Берем чеки первой страницы для редактора
 
             dgvRows.Columns.Clear();
             dgvRows.Rows.Clear();
 
-            dgvRows.Columns.Add("testName", "Привязка к чекбоксу");
+            dgvRows.Columns.Add("testName", "Привязка");
             dgvRows.Columns.Add("status", "Статус");
 
             for (int i = 0; i < (currentTable.columns?.Count ?? 0); i++)
-            {
-                string colName = currentTable.columns[i];
-                dgvRows.Columns.Add($"col{i}", colName);
-            }
+                dgvRows.Columns.Add($"col{i}", currentTable.columns[i]);
 
             foreach (var row in currentTable.rows)
             {
@@ -522,20 +472,14 @@ namespace TitleGen
                     status = "Скрыто";
                 values.Add(status);
                 values.AddRange(row.values ?? new List<string>());
-                var rowIndex = dgvRows.Rows.Add(values.ToArray());
+                int rIdx = dgvRows.Rows.Add(values.ToArray());
                 if (status == "Скрыто")
                 {
-                    dgvRows.Rows[rowIndex].DefaultCellStyle.BackColor = Color.LightGray;
-                    dgvRows.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.Gray;
+                    dgvRows.Rows[rIdx].DefaultCellStyle.BackColor = Color.LightGray;
+                    dgvRows.Rows[rIdx].DefaultCellStyle.ForeColor = Color.Gray;
                 }
             }
-
             SetupTestNameComboBoxColumn();
-            if (dgvRows.Columns["status"] != null)
-            {
-                dgvRows.Columns["status"].ReadOnly = true;
-                dgvRows.Columns["status"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-            }
         }
 
         private void SetupTestNameComboBoxColumn()
@@ -543,45 +487,30 @@ namespace TitleGen
             if (dgvRows == null) return;
             if (dgvRows.Columns["testName"] is DataGridViewComboBoxColumn) return;
 
-            var comboBoxColumn = new DataGridViewComboBoxColumn
-            {
-                Name = "testName",
-                HeaderText = "Привязка к чекбоксу"
-            };
-            comboBoxColumn.Items.Add("");
-            foreach (var testName in testCheckboxes1.Keys)
-                comboBoxColumn.Items.Add(testName);
+            var col = new DataGridViewComboBoxColumn { Name = "testName", HeaderText = "Привязка" };
+            col.Items.Add("");
+            foreach (var k in testCheckboxes1.Keys) col.Items.Add(k);
 
-            int colIndex = dgvRows.Columns["testName"].Index;
-            dgvRows.Columns.RemoveAt(colIndex);
-            dgvRows.Columns.Insert(colIndex, comboBoxColumn);
+            int idx = dgvRows.Columns["testName"].Index;
+            dgvRows.Columns.RemoveAt(idx);
+            dgvRows.Columns.Insert(idx, col);
         }
 
         private void UpdateRowStatuses(int pageNum)
         {
             if (dgvRows == null) return;
-            var activeChecks = (pageNum == 1) ? testCheckboxes1 : testCheckboxes2;
-
+            var checks = (pageNum == 1) ? testCheckboxes1 : testCheckboxes2;
             if (dgvRows.Columns["status"] == null) return;
 
             foreach (DataGridViewRow row in dgvRows.Rows)
             {
                 if (row.IsNewRow) continue;
-                string testName = row.Cells["testName"].Value?.ToString() ?? "";
-                string status = "Активно";
-                if (activeChecks.TryGetValue(testName, out CheckBox cb) && !cb.Checked)
-                    status = "Скрыто";
-                row.Cells["status"].Value = status;
-                if (status == "Скрыто")
-                {
-                    row.DefaultCellStyle.BackColor = Color.LightGray;
-                    row.DefaultCellStyle.ForeColor = Color.Gray;
-                }
-                else
-                {
-                    row.DefaultCellStyle.BackColor = dgvRows.DefaultCellStyle.BackColor;
-                    row.DefaultCellStyle.ForeColor = dgvRows.DefaultCellStyle.ForeColor;
-                }
+                string tn = row.Cells["testName"].Value?.ToString() ?? "";
+                string st = "Активно";
+                if (checks.TryGetValue(tn, out CheckBox cb) && !cb.Checked) st = "Скрыто";
+                row.Cells["status"].Value = st;
+                row.DefaultCellStyle.BackColor = (st == "Скрыто") ? Color.LightGray : dgvRows.DefaultCellStyle.BackColor;
+                row.DefaultCellStyle.ForeColor = (st == "Скрыто") ? Color.Gray : dgvRows.DefaultCellStyle.ForeColor;
             }
         }
 
@@ -599,67 +528,44 @@ namespace TitleGen
 
         private void btnSaveConfig_Click(object sender, EventArgs e)
         {
-            if (currentConfig == null || currentTable == null)
-            {
-                MessageBox.Show("Нет данных для сохранения.");
-                return;
-            }
-
+            if (currentConfig == null || currentTable == null) return;
             currentTable.rows.Clear();
             foreach (DataGridViewRow row in dgvRows.Rows)
             {
                 if (row.IsNewRow) continue;
-
-                var values = new List<string>();
-                for (int i = 2; i < row.Cells.Count; i++)
-                    values.Add(row.Cells[i].Value?.ToString() ?? "");
-                currentTable.rows.Add(new TableRow
-                {
-                    testName = row.Cells["testName"].Value?.ToString() ?? "",
-                    values = values
-                });
+                var vals = new List<string>();
+                for (int i = 2; i < row.Cells.Count; i++) vals.Add(row.Cells[i].Value?.ToString() ?? "");
+                currentTable.rows.Add(new TableRow { testName = row.Cells["testName"].Value?.ToString() ?? "", values = vals });
             }
-
             try
             {
-                string json = JsonConvert.SerializeObject(currentConfig, Formatting.Indented);
-                File.WriteAllText(currentConfigPath, json);
-                MessageBox.Show($"Конфиг сохранён:\n{currentConfigPath}", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                BindTableToGrid();
+                File.WriteAllText(currentConfigPath, JsonConvert.SerializeObject(currentConfig, Formatting.Indented));
+                MessageBox.Show("Сохранено!");
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка сохранения:\n{ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            catch (Exception ex) { MessageBox.Show("Ошибка: " + ex.Message); }
         }
 
-        private void BuildDynamicForm(string templatePath, Panel inputsPanel, Dictionary<string, TextBox> inputs)
+        private void BuildDynamicForm(string path, Panel panel, Dictionary<string, TextBox> inputs)
         {
-            if (inputsPanel == null || inputs == null) return;
-
-            inputsPanel.Controls.Clear();
+            if (panel == null || inputs == null) return;
+            panel.Controls.Clear();
             inputs.Clear();
-
-            var placeholders = ExtractPlaceholders(templatePath);
+            var phs = ExtractPlaceholders(path);
             int y = 10;
 
-            bool isPage1 = (inputsPanel == inputsPanel1);
-            ComboBox cmbItemMode = isPage1 ? cmbItemMode1 : cmbItemMode2;
-            bool isTwoItems = (cmbItemMode?.SelectedIndex == 1);
+            // Проверяем количество изделий для фильтрации _2
+            bool isTwoItems = false;
+            // Пытаемся определить контекст (грубо)
+            if (panel == inputsPanel1 && cmbItemMode1?.SelectedIndex == 1) isTwoItems = true;
+            if (panel == inputsPanel2 && cmbItemMode2?.SelectedIndex > 0) isTwoItems = true; // Если выбрано > 1 (индекс 0 это 1 изд)
 
-            foreach (var ph in placeholders)
+            foreach (var ph in phs)
             {
-                if (!isTwoItems && (ph.Contains("_2") || ph.EndsWith("2")))
-                    continue;
-
-                string displayText = FriendlyNames.ContainsKey(ph)
-                    ? FriendlyNames[ph]
-                    : ph.Replace("_2", " 2");
-
-                var lbl = new Label { Text = displayText, Left = 10, Top = y + 3, Width = 200 };
+                if (!isTwoItems && (ph.Contains("_2") || ph.EndsWith("2"))) continue;
+                string txt = FriendlyNames.ContainsKey(ph) ? FriendlyNames[ph] : ph.Replace("_2", " 2");
+                panel.Controls.Add(new Label { Text = txt, Left = 10, Top = y + 3, Width = 200 });
                 var tb = new TextBox { Left = 220, Top = y, Width = 250 };
-                inputsPanel.Controls.Add(lbl);
-                inputsPanel.Controls.Add(tb);
+                panel.Controls.Add(tb);
                 inputs[ph] = tb;
                 y += 30;
             }
@@ -667,34 +573,24 @@ namespace TitleGen
 
         private List<string> ExtractPlaceholders(string path)
         {
-            if (placeholdersCache.TryGetValue(path, out List<string> cached))
-                return cached;
-
-            var placeholders = new List<string>();
-            Word.Application wordApp = null;
-            Word.Document doc = null;
+            if (placeholdersCache.TryGetValue(path, out var c)) return c;
+            var list = new List<string>();
+            Word.Application app = null; Word.Document doc = null;
             try
             {
-                wordApp = new Word.Application();
-                doc = wordApp.Documents.Open(path, ReadOnly: true, Visible: false);
-                var text = doc.Content.Text;
-                var matches = Regex.Matches(text, @"\{\{([А-Яа-яA-Za-z0-9_]+)\}\}");
-                foreach (Match match in matches)
-                {
-                    string ph = match.Groups[1].Value;
-                    if (!placeholders.Contains(ph))
-                        placeholders.Add(ph);
-                }
+                app = new Word.Application();
+                doc = app.Documents.Open(path, ReadOnly: true, Visible: false);
+                var m = Regex.Matches(doc.Content.Text, @"\{\{([А-Яа-яA-Za-z0-9_]+)\}\}");
+                foreach (Match match in m) if (!list.Contains(match.Groups[1].Value)) list.Add(match.Groups[1].Value);
             }
             finally
             {
                 if (doc != null) { doc.Close(false); Marshal.ReleaseComObject(doc); }
-                if (wordApp != null) { wordApp.Quit(); Marshal.ReleaseComObject(wordApp); }
+                if (app != null) { app.Quit(); Marshal.ReleaseComObject(app); }
                 GC.Collect(); GC.WaitForPendingFinalizers();
             }
-
-            placeholdersCache[path] = placeholders;
-            return placeholders;
+            placeholdersCache[path] = list;
+            return list;
         }
 
         private void btnGenerate_Click(int pageNum)
@@ -712,43 +608,55 @@ namespace TitleGen
                 return;
             }
 
-            string configPath = Path.Combine(Path.GetDirectoryName(txtTemplate.Text), "config.json");
-            if (!File.Exists(configPath))
+            // Получаем количество изделий
+            int itemsCount = 1;
+            if (cmbItemMode != null && cmbItemMode.SelectedItem != null)
             {
-                MessageBox.Show("Конфиг config.json не найден!");
-                return;
+                string s = cmbItemMode.SelectedItem.ToString();
+                int.TryParse(Regex.Match(s, @"\d+").Value, out itemsCount);
+                if (itemsCount < 1) itemsCount = 1;
             }
 
-            using (var sfd = new SaveFileDialog { Filter = "Word Document (*.docx)|*.docx", FileName = $"Протокол_Стр{pageNum}.docx" })
+            string configPath = Path.Combine(Path.GetDirectoryName(txtTemplate.Text), "config.json");
+
+            using (var sfd = new SaveFileDialog { Filter = "Word (*.docx)|*.docx", FileName = $"Protocol_{pageNum}.docx" })
             {
                 if (sfd.ShowDialog() != DialogResult.OK) return;
 
-                Word.Application wordApp = null;
-                Word.Document doc = null;
+                Word.Application app = null; Word.Document doc = null;
                 try
                 {
-                    wordApp = new Word.Application();
-                    doc = wordApp.Documents.Open(txtTemplate.Text, ReadOnly: false, Visible: false);
+                    app = new Word.Application();
+                    doc = app.Documents.Open(txtTemplate.Text, ReadOnly: false, Visible: false);
 
                     ReplacePlaceholdersInDocument(doc, inputs);
 
-                    // Перечитываем конфиг перед генерацией, чтобы быть уверенным в актуальности
-                    TemplateConfig config = JsonConvert.DeserializeObject<TemplateConfig>(File.ReadAllText(configPath));
+                    // Таблицы только для основной страницы
+                    if (pageNum == 1 && File.Exists(configPath))
+                    {
+                        var cfg = JsonConvert.DeserializeObject<TemplateConfig>(File.ReadAllText(configPath));
+                        ProcessTablesFromConfig(doc, cfg, checks, false);
+                    }
 
-                    ProcessTablesFromConfig(doc, config, checks, cmbItemMode?.SelectedIndex == 1);
                     ReplacePlaceholdersInDocument(doc, inputs);
+
+                    // Дублирование страниц если нужно
+                    if (itemsCount > 1 && doc.Bookmarks.Exists("ItemStart") && doc.Bookmarks.Exists("ItemEnd"))
+                    {
+                        DuplicateItemPages(doc, itemsCount, inputs);
+                    }
 
                     doc.SaveAs2(sfd.FileName);
-                    MessageBox.Show("Протокол успешно создан:\n" + sfd.FileName);
+                    MessageBox.Show($"Готово! Изделий: {itemsCount}");
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Ошибка при генерации:\n" + ex.Message);
+                    MessageBox.Show("Ошибка: " + ex.Message);
                 }
                 finally
                 {
                     if (doc != null) { doc.Close(false); Marshal.ReleaseComObject(doc); }
-                    if (wordApp != null) { wordApp.Quit(); Marshal.ReleaseComObject(wordApp); }
+                    if (app != null) { app.Quit(); Marshal.ReleaseComObject(app); }
                     GC.Collect(); GC.WaitForPendingFinalizers();
                 }
             }
@@ -756,187 +664,116 @@ namespace TitleGen
 
         private void ReplacePlaceholdersInDocument(Word.Document doc, Dictionary<string, TextBox> inputs)
         {
-            foreach (var pair in inputs)
+            foreach (var p in inputs)
             {
-                string placeholder = "{{" + pair.Key + "}}";
-                string value = pair.Value.Text;
-                var range = doc.Content;
-                range.Find.Execute(FindText: placeholder, ReplaceWith: value, Replace: Word.WdReplace.wdReplaceAll);
+                var rng = doc.Content;
+                rng.Find.Execute(FindText: "{{" + p.Key + "}}", ReplaceWith: p.Value.Text, Replace: Word.WdReplace.wdReplaceAll);
             }
         }
 
-        private void ProcessTablesFromConfig(Word.Document doc, TemplateConfig config, Dictionary<string, CheckBox> activeChecks, bool isTwoItems)
+        private void ProcessTablesFromConfig(Word.Document doc, TemplateConfig cfg, Dictionary<string, CheckBox> checks, bool isTwo)
         {
-            foreach (var tableConfig in config.tables)
+            foreach (var t in cfg.tables)
             {
-                if (!doc.Bookmarks.Exists(tableConfig.bookmark))
-                {
-                    MessageBox.Show($"Закладка '{tableConfig.bookmark}' не найдена для таблицы '{tableConfig.name}'.");
-                    continue;
-                }
-
+                if (!doc.Bookmarks.Exists(t.bookmark)) continue;
                 try
                 {
-                    if (tableConfig.name == "Результаты испытаний")
+                    if (t.name == "Результаты испытаний")
                     {
-                        Word.Bookmark bookmark = doc.Bookmarks[tableConfig.bookmark];
-                        var range = bookmark.Range;
-                        range.Text = "\n";
-                        range.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
+                        var bk = doc.Bookmarks[t.bookmark];
+                        var rng = bk.Range; rng.Text = "\n"; rng.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
 
                         var groups = new Dictionary<string, List<TableRow>>();
-                        foreach (var row in tableConfig.rows)
+                        foreach (var r in t.rows)
                         {
-                            if (activeChecks.TryGetValue(row.testName, out CheckBox cb) && cb.Checked)
+                            if (checks.TryGetValue(r.testName, out CheckBox cb) && cb.Checked)
                             {
-                                if (!groups.ContainsKey(row.testName))
-                                    groups[row.testName] = new List<TableRow>();
-                                groups[row.testName].Add(row);
+                                if (!groups.ContainsKey(r.testName)) groups[r.testName] = new List<TableRow>();
+                                groups[r.testName].Add(r);
                             }
                         }
+                        if (groups.Count == 0) continue;
 
-                        if (groups.Count == 0)
+                        foreach (var g in groups)
                         {
-                            MessageBox.Show("Нет выбранных испытаний для результатов.", "Предупреждение", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                            continue;
-                        }
-
-                        foreach (var group in groups)
-                        {
-                            var rowsInGroup = new List<TableRow>();
-                            foreach (var row in group.Value)
-                            {
-                                var selectedValues = (isTwoItems && row.valuesTwo != null)
-                                    ? row.valuesTwo
-                                    : row.values;
-
-                                rowsInGroup.Add(new TableRow
+                            var rows = g.Value.Select(r => new TableRow { testName = r.testName, values = (isTwo && r.valuesTwo != null) ? r.valuesTwo : r.values }).ToList();
+                            var tbl = doc.Tables.Add(rng, rows.Count, t.columns.Count);
+                            for (int i = 0; i < rows.Count; i++)
+                                for (int c = 0; c < t.columns.Count; c++)
                                 {
-                                    testName = row.testName,
-                                    values = selectedValues ?? new List<string>()
-                                });
-                            }
-
-                            Word.Table newTable = doc.Tables.Add(
-                                Range: range,
-                                NumRows: rowsInGroup.Count,
-                                NumColumns: tableConfig.columns.Count
-                            );
-
-                            for (int i = 0; i < rowsInGroup.Count; i++)
-                            {
-                                var rowData = rowsInGroup[i];
-                                for (int c = 0; c < tableConfig.columns.Count; c++)
-                                {
-                                    string text = (c < rowData.values.Count) ? rowData.values[c] : "";
-                                    newTable.Cell(i + 1, c + 1).Range.Text = text;
-                                    newTable.Cell(i + 1, c + 1).Range.Font.Name = "Times New Roman";
-                                    newTable.Cell(i + 1, c + 1).Range.Font.Size = 13;
-                                    newTable.Cell(i + 1, c + 1).Range.Font.Color = Word.WdColor.wdColorBlack;
-                                    newTable.Cell(i + 1, c + 1).Shading.BackgroundPatternColor = Word.WdColor.wdColorWhite;
-                                    newTable.Cell(i + 1, c + 1).Range.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphLeft;
+                                    string txt = (c < rows[i].values.Count) ? rows[i].values[c] : "";
+                                    tbl.Cell(i + 1, c + 1).Range.Text = txt;
+                                    tbl.Cell(i + 1, c + 1).Range.Font.Name = "Times New Roman";
+                                    tbl.Cell(i + 1, c + 1).Range.Font.Size = 13;
                                 }
-                            }
-
-                            newTable.Borders.Enable = 1;
-                            newTable.Borders.OutsideLineStyle = Word.WdLineStyle.wdLineStyleSingle;
-                            newTable.Borders.InsideLineStyle = Word.WdLineStyle.wdLineStyleSingle;
-                            newTable.Borders.OutsideColor = Word.WdColor.wdColorBlack;
-                            newTable.Borders.InsideColor = Word.WdColor.wdColorBlack;
-
-                            if (newTable.Columns.Count >= 7)
-                            {
-                                newTable.Columns[1].Width = 30;
-                                newTable.Columns[2].Width = 200;
-                                newTable.Columns[3].Width = 80;
-                                newTable.Columns[4].Width = 80;
-                                newTable.Columns[5].Width = 120;
-                                newTable.Columns[6].Width = 120;
-                                newTable.Columns[7].Width = 80;
-                            }
-
-                            range = newTable.Range;
-                            range.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
-                            range.Text = "\n";
-                            range.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
+                            tbl.Borders.Enable = 1;
+                            rng = tbl.Range; rng.Collapse(Word.WdCollapseDirection.wdCollapseEnd); rng.Text = "\n"; rng.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
                         }
                     }
                     else
                     {
-                        Word.Bookmark bookmark = doc.Bookmarks[tableConfig.bookmark];
-                        Word.Table existingTable = bookmark.Range.Tables[1];
-                        int insertRowIndex = bookmark.Range.Rows[1].Index;
+                        var bk = doc.Bookmarks[t.bookmark];
+                        var tbl = bk.Range.Tables[1];
+                        int startRow = bk.Range.Rows[1].Index;
+                        var list = t.rows.Where(r => checks.TryGetValue(r.testName, out CheckBox cb) && cb.Checked).ToList();
 
-                        var rowsToInsert = new List<TableRow>();
-                        foreach (var row in tableConfig.rows)
+                        if (t.name == "СИ и ИО")
                         {
-                            if (activeChecks.TryGetValue(row.testName, out CheckBox cb) && cb.Checked)
-                                rowsToInsert.Add(row);
+                            string any = checks.FirstOrDefault(x => x.Value.Checked).Key ?? "";
+                            foreach (var eq in commonEquipment) list.Add(new TableRow { testName = any, values = eq.values });
                         }
 
-                        if (tableConfig.name == "СИ и ИО")
+                        for (int i = 0; i < list.Count; i++)
                         {
-                            string anyTest = "";
-                            foreach (var kvp in activeChecks)
+                            int rIdx = startRow + i;
+                            if (rIdx > tbl.Rows.Count) tbl.Rows.Add();
+                            for (int c = 0; c < t.columns.Count; c++)
                             {
-                                if (kvp.Value.Checked)
-                                {
-                                    anyTest = kvp.Key;
-                                    break;
-                                }
+                                string txt = (c < list[i].values.Count) ? list[i].values[c] : "";
+                                tbl.Cell(rIdx, c + 1).Range.Text = txt;
+                                tbl.Cell(rIdx, c + 1).Range.Font.Name = "Times New Roman";
+                                tbl.Cell(rIdx, c + 1).Range.Font.Size = 13;
                             }
-                            foreach (var eq in commonEquipment)
-                            {
-                                rowsToInsert.Add(new TableRow { testName = anyTest, values = new List<string>(eq.values) });
-                            }
-                        }
-
-                        if (rowsToInsert.Count == 0)
-                        {
-                            MessageBox.Show($"Нет выбранных испытаний для таблицы '{tableConfig.name}'.", "Предупреждение", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                            continue;
-                        }
-
-                        for (int i = 0; i < rowsToInsert.Count; i++)
-                        {
-                            int currentRow = insertRowIndex + i;
-                            if (currentRow > existingTable.Rows.Count)
-                                existingTable.Rows.Add();
-
-                            var rowData = rowsToInsert[i];
-                            for (int c = 0; c < tableConfig.columns.Count; c++)
-                            {
-                                string text = (c < rowData.values.Count) ? rowData.values[c] : "";
-                                existingTable.Cell(currentRow, c + 1).Range.Text = text;
-                                existingTable.Cell(currentRow, c + 1).Range.Font.Name = "Times New Roman";
-                                existingTable.Cell(currentRow, c + 1).Range.Font.Size = 13;
-                            }
-
-                            existingTable.Cell(currentRow, 1).Range.Text = (i + 1).ToString();
-                        }
-
-                        if (tableConfig.name == "Программа испытаний" && existingTable.Columns.Count >= 4)
-                        {
-                            existingTable.Columns[1].Width = 30;
-                            existingTable.Columns[2].Width = 250;
-                            existingTable.Columns[3].Width = 150;
-                            existingTable.Columns[4].Width = 80;
-                        }
-                        else if (tableConfig.name == "СИ и ИО" && existingTable.Columns.Count >= 5)
-                        {
-                            existingTable.Columns[1].Width = 30;
-                            existingTable.Columns[2].Width = 200;
-                            existingTable.Columns[3].Width = 100;
-                            existingTable.Columns[4].Width = 80;
-                            existingTable.Columns[5].Width = 100;
+                            tbl.Cell(rIdx, 1).Range.Text = (i + 1).ToString();
                         }
                     }
                 }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"❌ Ошибка вставки данных в '{tableConfig.name}': {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
+                catch { }
             }
+        }
+
+        private void DuplicateItemPages(Word.Document doc, int totalCount, Dictionary<string, TextBox> inputs)
+        {
+            Word.Bookmark startBk = doc.Bookmarks["ItemStart"];
+            Word.Bookmark endBk = doc.Bookmarks["ItemEnd"];
+
+            Word.Range sampleRange = doc.Range(startBk.Start, endBk.End);
+            Word.Range currentPos = doc.Range(endBk.End, endBk.End);
+
+            for (int i = 2; i <= totalCount; i++)
+            {
+                sampleRange.Copy();
+                currentPos.Paste();
+
+                Word.Range newBlock = doc.Range(currentPos.Start, currentPos.Start + sampleRange.Characters.Count);
+
+                // Замена номера изделия
+                Word.Find f = newBlock.Find;
+                f.Execute(FindText: "{{Номер_Изделия}}", ReplaceWith: i.ToString(), Replace: Word.WdReplace.wdReplaceAll);
+                // Можно добавить замену других уникальных полей если нужно
+
+                currentPos.Start = newBlock.End;
+                currentPos.End = newBlock.End;
+            }
+
+            // Заполняем оригинал первым номером
+            Word.Range orig = doc.Range(startBk.Start, endBk.End);
+            Word.Find fOrig = orig.Find;
+            fOrig.Execute(FindText: "{{Номер_Изделия}}", ReplaceWith: "1", Replace: Word.WdReplace.wdReplaceAll);
+
+            // Удаляем закладки и оригинальный текст (так как копии уже созданы)
+            // Внимание: удаляем диапазон, который занимал оригинал
+            orig.Delete();
         }
     }
 }
